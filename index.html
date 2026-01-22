@@ -133,9 +133,23 @@
       transform: translateY(0);
     }
 
-    button.liked { background: var(--red); }
-    button.reshared { background: var(--green); }
-    button.owned { background: var(--gold); color: #000; }
+    button.liked { 
+      background: var(--red); 
+    }
+
+    button.reshared { 
+      background: var(--green); 
+    }
+
+    button.owned { 
+      background: var(--gold); 
+      color: #000; 
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     #header {
       display: flex;
@@ -172,6 +186,7 @@
     .btn-group {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
     #compose {
@@ -267,12 +282,14 @@
       display: flex;
       gap: 10px;
       margin-top: 15px;
+      flex-wrap: wrap;
     }
 
     .actions button {
       flex: 1;
       padding: 8px;
       font-size: 14px;
+      min-width: 80px;
     }
 
     #dashboard, #portfolio-view, #dm-view {
@@ -314,8 +331,10 @@
 
     .stat small {
       font-size: 14px;
-      color: var(--green);
     }
+
+    .profit { color: var(--green); }
+    .loss { color: var(--red); }
 
     #notification {
       position: fixed;
@@ -328,6 +347,7 @@
       animation: slideIn 0.3s ease;
       z-index: 1000;
       box-shadow: 0 4px 20px rgba(46, 91, 255, 0.4);
+      max-width: 300px;
     }
 
     #modal {
@@ -352,6 +372,25 @@
       width: 90%;
       animation: slideIn 0.3s ease;
       border: 1px solid var(--primary);
+    }
+
+    .modal-content h2 {
+      margin-bottom: 20px;
+    }
+
+    .modal-content textarea {
+      width: 100%;
+      margin-bottom: 15px;
+    }
+
+    .modal-content .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-content .btn-group button {
+      flex: 1;
     }
 
     .progress-bar {
@@ -409,8 +448,16 @@
       transform: translateX(5px);
     }
 
-    .profit { color: var(--green); }
-    .loss { color: var(--red); }
+    .portfolio-item .header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .portfolio-item button {
+      margin-top: 10px;
+      width: 100%;
+    }
 
     #dm-view {
       background: var(--card);
@@ -452,15 +499,17 @@
       margin-bottom: 5px;
     }
 
-    #reshare-modal .modal-content {
-      max-width: 500px;
-    }
-
     .checkbox-label {
       display: flex;
       align-items: center;
       gap: 10px;
       margin: 15px 0;
+      cursor: pointer;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
       cursor: pointer;
     }
 
@@ -470,7 +519,7 @@
       }
 
       .actions {
-        flex-wrap: wrap;
+        flex-direction: column;
       }
 
       .btn-group {
@@ -534,7 +583,7 @@
   </div>
 
   <script>
-    let ws, uid, username, userLikes = new Set(), userReshares = new Set(), userPortfolio = new Set()
+    let ws, uid, username
     const auth_div = document.getElementById('auth')
     const main_div = document.getElementById('main')
     const feed = document.getElementById('feed')
@@ -547,7 +596,9 @@
     const dmStatus = document.getElementById('dm-status')
 
     document.getElementById('text').addEventListener('input', (e) => {
-      document.getElementById('char-count').textContent = e.target.value.length + ' / 280'
+      const count = e.target.value.length
+      document.getElementById('char-count').textContent = count + ' / 280'
+      document.getElementById('char-count').style.color = count > 260 ? 'var(--red)' : '#888'
     })
 
     async function auth(signup) {
@@ -623,15 +674,7 @@
         }
 
         if (t === 'update') {
-          const likeEl = document.getElementById('lc' + d.id)
-          const reshareEl = document.getElementById('rc' + d.id)
-          const valueEl = document.getElementById('v' + d.id)
-
-          if (d.like_count !== undefined && likeEl) likeEl.textContent = d.like_count
-          if (d.reshare_count !== undefined && reshareEl) {
-            reshareEl.textContent = d.reshare_count
-            if (valueEl) valueEl.textContent = '💰 ' + d.value
-          }
+          updatePostUI(d)
         }
 
         if (t === 'balance') {
@@ -667,8 +710,58 @@
       ws.onclose = () => showNotification('Disconnected')
     }
 
+    function updatePostUI(d) {
+      const likeBtn = document.getElementById('likebtn' + d.id)
+      const reshareBtn = document.getElementById('resharebtn' + d.id)
+      const buyBtn = document.getElementById('buybtn' + d.id)
+      const sellBtn = document.getElementById('sellbtn' + d.id)
+      const likeCount = document.getElementById('lc' + d.id)
+      const reshareCount = document.getElementById('rc' + d.id)
+      const valueEl = document.getElementById('v' + d.id)
+
+      if (d.like_count !== undefined && likeCount) {
+        likeCount.textContent = d.like_count
+      }
+
+      if (d.reshare_count !== undefined && reshareCount) {
+        reshareCount.textContent = d.reshare_count
+      }
+
+      if (d.value !== undefined && valueEl) {
+        valueEl.textContent = '💰 ' + d.value
+      }
+
+      if (d.user_id === uid) {
+        if (d.liked !== undefined && likeBtn) {
+          if (d.liked) {
+            likeBtn.classList.add('liked')
+          } else {
+            likeBtn.classList.remove('liked')
+          }
+        }
+
+        if (d.reshared !== undefined && reshareBtn) {
+          if (d.reshared) {
+            reshareBtn.classList.add('reshared')
+          } else {
+            reshareBtn.classList.remove('reshared')
+          }
+        }
+
+        if (d.owns !== undefined && sellBtn) {
+          if (d.owns) {
+            sellBtn.classList.add('owned')
+            sellBtn.textContent = '📉 Sell (Owned)'
+          } else {
+            sellBtn.classList.remove('owned')
+            sellBtn.textContent = '📉 Sell'
+          }
+        }
+      }
+    }
+
     async function loadFeed() {
-      const res = await fetch('/api/feed')
+      const res = await fetch(`/api/feed?uid=${uid}`)
       const posts = await res.json()
       feed.innerHTML = ''
       posts.forEach(p => addPost(p))
@@ -692,6 +785,11 @@
         `
       }
 
+      const likedClass = p.user_liked ? 'liked' : ''
+      const resharedClass = p.user_reshared ? 'reshared' : ''
+      const ownedClass = p.user_owns ? 'owned' : ''
+      const sellText = p.user_owns ? '📉 Sell (Owned)' : '📉 Sell'
+
       el.innerHTML = `
         <div class="header">
           <span>@${escapeHtml(p.username)}</span>
@@ -700,10 +798,10 @@
         ${p.text ? '<p>' + escapeHtml(p.text) + '</p>' : ''}
         ${originalHTML}
         <div class="actions">
-          <button id="likebtn${p.id}" onclick="like(${p.id})">❤️ <span id="lc${p.id}">${p.like_count}</span></button>
-          <button id="resharebtn${p.id}" onclick="openReshareModal(${p.id})">🔄 <span id="rc${p.id}">${p.reshare_count}</span></button>
-          <button onclick="buy(${p.id})">📈 Buy</button>
-          <button onclick="sell(${p.id})">📉 Sell</button>
+          <button id="likebtn${p.id}" class="${likedClass}" onclick="like(${p.id})">❤️ <span id="lc${p.id}">${p.like_count}</span></button>
+          <button id="resharebtn${p.id}" class="${resharedClass}" onclick="openReshareModal(${p.id})">🔄 <span id="rc${p.id}">${p.reshare_count}</span></button>
+          <button id="buybtn${p.id}" onclick="buy(${p.id})">📈 Buy</button>
+          <button id="sellbtn${p.id}" class="${ownedClass}" onclick="sell(${p.id})">${sellText}</button>
         </div>
       `
       feed.prepend(el)
@@ -722,36 +820,30 @@
 
     function like(id) {
       ws.send(JSON.stringify({ t: 'like', d: { uid, id } }))
-      const btn = document.getElementById('likebtn' + id)
-      btn.classList.toggle('liked')
     }
 
     function openReshareModal(id) {
       const modal = document.createElement('div')
-      modal.id = 'reshare-modal'
-      modal.className = 'hide'
+      modal.id = 'modal'
       modal.innerHTML = `
-        <div id="modal">
-          <div class="modal-content">
-            <h2>Reshare Post</h2>
-            <textarea id="reshare-text" placeholder="Add your comment (optional)" maxlength="280"></textarea>
-            <label class="checkbox-label">
-              <input type="checkbox" id="show-original" checked>
-              Show original post (allows auto-sell)
-            </label>
-            <div style="display:flex;gap:10px;margin-top:20px">
-              <button onclick="reshare(${id})">Reshare</button>
-              <button onclick="closeReshareModal()">Cancel</button>
-            </div>
+        <div class="modal-content">
+          <h2>Reshare Post</h2>
+          <textarea id="reshare-text" placeholder="Add your comment (optional)" maxlength="280"></textarea>
+          <label class="checkbox-label">
+            <input type="checkbox" id="show-original" checked>
+            <span>Show original post (allows auto-sell)</span>
+          </label>
+          <div class="btn-group">
+            <button onclick="reshare(${id})">Reshare</button>
+            <button onclick="closeReshareModal()">Cancel</button>
           </div>
         </div>
       `
       document.body.appendChild(modal)
-      modal.classList.remove('hide')
     }
 
     function closeReshareModal() {
-      const modal = document.getElementById('reshare-modal')
+      const modal = document.getElementById('modal')
       if (modal) modal.remove()
     }
 
@@ -760,8 +852,6 @@
       const showOriginal = document.getElementById('show-original')?.checked
       ws.send(JSON.stringify({ t: 'reshare', d: { uid, id, text, show_original: showOriginal } }))
       closeReshareModal()
-      const btn = document.getElementById('resharebtn' + id)
-      if (btn) btn.classList.toggle('reshared')
     }
 
     function buy(id) {
@@ -783,6 +873,7 @@
       if (view === 'feed') {
         feed.classList.remove('hide')
         compose.classList.remove('hide')
+        await loadFeed()
       } else if (view === 'dashboard') {
         dashboard.classList.remove('hide')
         await loadDashboard()
@@ -802,6 +893,8 @@
       const res = await fetch(`/api/stats?uid=${uid}`)
       const data = await res.json()
 
+      const roiClass = data.roi >= 0 ? 'profit' : 'loss'
+
       dashboard.innerHTML = `
         <div class="stat">
           <h3>💰 Balance</h3>
@@ -814,7 +907,7 @@
         <div class="stat">
           <h3>📈 Portfolio</h3>
           <p>${data.portfolio_value}</p>
-          <small class="${data.roi >= 0 ? 'profit' : 'loss'}">${data.roi > 0 ? '+' : ''}${data.roi}%</small>
+          <small class="${roiClass}">${data.roi > 0 ? '+' : ''}${data.roi}%</small>
         </div>
         <div class="stat">
           <h3>💬 DM Status</h3>
@@ -825,9 +918,41 @@
     }
 
     async function loadPortfolio() {
-      portfolioView.innerHTML = '<h2>Your Portfolio</h2><div id="portfolio-list"></div>'
+      portfolioView.innerHTML = '<h2 style="margin-bottom:20px">Your Portfolio</h2><div id="portfolio-list"></div>'
       const list = document.getElementById('portfolio-list')
-      list.innerHTML = '<p>Loading...</p>'
+
+      try {
+        const res = await fetch(`/api/portfolio?uid=${uid}`)
+        const items = await res.json()
+
+        if (items.length === 0) {
+          list.innerHTML = '<p style="text-align:center;color:#888">No assets yet. Buy some posts to start investing!</p>'
+          return
+        }
+
+        list.innerHTML = items.map(item => {
+          const profit = item.current_value - item.buy_price
+          const profitClass = profit >= 0 ? 'profit' : 'loss'
+          const profitSign = profit > 0 ? '+' : ''
+
+          return `
+            <div class="portfolio-item">
+              <div class="header">
+                <span>@${escapeHtml(item.author)}</span>
+                <span class="${profitClass}">${profitSign}${profit} (${profitSign}${Math.round((profit/item.buy_price)*100)}%)</span>
+              </div>
+              <p>${escapeHtml(item.text.slice(0, 100))}${item.text.length > 100 ? '...' : ''}</p>
+              <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:14px;color:#888">
+                <span>Bought: 💰${item.buy_price}</span>
+                <span>Now: 💰${item.current_value}</span>
+              </div>
+              <button onclick="sell(${item.post_id})" class="owned">Sell for 💰${item.current_value}</button>
+            </div>
+          `
+        }).join('')
+      } catch (err) {
+        list.innerHTML = '<p style="text-align:center;color:var(--red)">Error loading portfolio</p>'
+      }
     }
 
     async function loadLeaderboard() {

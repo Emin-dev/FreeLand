@@ -34,6 +34,7 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/api/feed") {
+      const uid = parseInt(url.searchParams.get("uid"))
       const posts = db.prepare(`
         SELECT 
           p.*, 
@@ -52,6 +53,9 @@ const server = Bun.serve({
       posts.forEach(p => {
         p.like_count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(p.id).c
         p.reshare_count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(p.id).c
+        p.user_liked = uid ? db.prepare("SELECT COUNT(*) as c FROM likes WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
+        p.user_reshared = uid ? db.prepare("SELECT COUNT(*) as c FROM reshares WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
+        p.user_owns = uid ? db.prepare("SELECT COUNT(*) as c FROM portfolio WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
       })
 
       return Response.json(posts)
@@ -70,7 +74,7 @@ const server = Bun.serve({
 
       const totalValue = portfolio.total || 0
       const invested = portfolio.invested || 1
-      const roi = Math.round(((totalValue - invested) / invested) * 100)
+      const roi = invested > 0 ? Math.round(((totalValue - invested) / invested) * 100) : 0
 
       return Response.json({
         coins: user.coins,
@@ -79,6 +83,24 @@ const server = Bun.serve({
         roi,
         dm_active: user.dm_until && user.dm_until > Date.now()
       })
+    }
+
+    if (url.pathname === "/api/portfolio") {
+      const uid = parseInt(url.searchParams.get("uid"))
+      const items = db.prepare(`
+        SELECT 
+          pf.*,
+          p.text,
+          p.value as current_value,
+          u.username as author
+        FROM portfolio pf
+        JOIN posts p ON pf.post_id=p.id
+        JOIN users u ON p.user_id=u.id
+        WHERE pf.user_id=? AND p.deleted=0
+        ORDER BY pf.bought DESC
+      `).all(uid)
+
+      return Response.json(items)
     }
 
     if (url.pathname === "/api/leaderboard") {
@@ -165,7 +187,10 @@ const server = Bun.serve({
           created: Date.now(),
           original_post_id: null,
           show_original: 1,
-          deleted: 0
+          deleted: 0,
+          user_liked: false,
+          user_reshared: false,
+          user_owns: false
         }
 
         broadcast({ t: "new", d: post })
@@ -174,22 +199,24 @@ const server = Bun.serve({
 
       if (t === "like") {
         const existing = db.prepare("SELECT id FROM likes WHERE user_id=? AND post_id=?").get(uid, d.id)
-        const post = db.prepare("SELECT user_id FROM posts WHERE id=?").get(d.id)
 
         if (existing) {
           db.prepare("DELETE FROM likes WHERE user_id=? AND post_id=?").run(uid, d.id)
           const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
-          broadcast({ t: "update", d: { id: d.id, like_count: count } })
+          broadcast({ t: "update", d: { id: d.id, like_count: count, user_id: uid, liked: false } })
         } else {
           db.prepare("INSERT INTO likes(user_id,post_id) VALUES(?,?)").run(uid, d.id)
           const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
-          broadcast({ t: "update", d: { id: d.id, like_count: count } })
+          broadcast({ t: "update", d: { id: d.id, like_count: count, user_id: uid, liked: true } })
         }
       }
 
       if (t === "reshare") {
         const existing = db.prepare("SELECT id FROM reshares WHERE user_id=? AND post_id=?").get(uid, d.id)
         const originalPost = db.prepare("SELECT * FROM posts WHERE id=?").get(d.id)
+
+        if (!originalPost) return
+
         const user = db.prepare("SELECT username FROM users WHERE id=?").get(uid)
 
         if (existing) {
@@ -202,7 +229,7 @@ const server = Bun.serve({
           const newValue = calcValue(count)
           db.prepare("UPDATE posts SET value=? WHERE id=?").run(newValue, d.id)
 
-          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue } })
+          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue, user_id: uid, reshared: false } })
           broadcast({ t: "remove", d: { uid, original_id: d.id } })
           sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "Unshared! -2 coins" } })
         } else {
@@ -234,11 +261,14 @@ const server = Bun.serve({
             original_text: showOriginal ? originalPost.text : null,
             original_author: showOriginal ? originalUser.username : null,
             show_original: showOriginal ? 1 : 0,
-            created: Date.now()
+            created: Date.now(),
+            user_liked: false,
+            user_reshared: false,
+            user_owns: false
           }
 
           broadcast({ t: "new", d: newPost })
-          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue } })
+          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue, user_id: uid, reshared: true } })
           sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "+2 coins for reshare!" } })
           sendToUser(originalPost.user_id, { t: "balance", d: { coins: getCoins(originalPost.user_id), msg: "+5 coins from reshare!" } })
         }
@@ -253,16 +283,19 @@ const server = Bun.serve({
           return
         }
 
-        try {
-          db.prepare("INSERT INTO portfolio(user_id,post_id,buy_price) VALUES(?,?,?)").run(uid, d.id, post.value)
-          db.prepare("UPDATE users SET coins=coins-? WHERE id=?").run(post.value, uid)
-          db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(Math.floor(post.value * 0.8), post.user_id)
-
-          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Bought post for ${post.value} coins!` } })
-          sendToUser(post.user_id, { t: "balance", d: { coins: getCoins(post.user_id), msg: `Post sold for ${Math.floor(post.value * 0.8)} coins!` } })
-        } catch {
+        const exists = db.prepare("SELECT id FROM portfolio WHERE user_id=? AND post_id=?").get(uid, d.id)
+        if (exists) {
           sendToUser(uid, { t: "error", d: { msg: "Already own this post" } })
+          return
         }
+
+        db.prepare("INSERT INTO portfolio(user_id,post_id,buy_price) VALUES(?,?,?)").run(uid, d.id, post.value)
+        db.prepare("UPDATE users SET coins=coins-? WHERE id=?").run(post.value, uid)
+        db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(Math.floor(post.value * 0.8), post.user_id)
+
+        broadcast({ t: "update", d: { id: d.id, user_id: uid, owns: true } })
+        sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Bought post for ${post.value} coins!` } })
+        sendToUser(post.user_id, { t: "balance", d: { coins: getCoins(post.user_id), msg: `Post sold for ${Math.floor(post.value * 0.8)} coins!` } })
       }
 
       if (t === "sell") {
@@ -280,6 +313,7 @@ const server = Bun.serve({
         } else {
           db.prepare("DELETE FROM portfolio WHERE user_id=? AND post_id=?").run(uid, d.id)
           db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(post.value, uid)
+          broadcast({ t: "update", d: { id: d.id, user_id: uid, owns: false } })
           sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Sold post for ${post.value} coins!` } })
         }
       }
