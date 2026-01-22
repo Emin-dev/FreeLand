@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: freeland
+    env: docker
+    dockerfilePath: ./Dockerfile
+    buildCommand: bun install
+    startCommand: bun server.ts
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    plan: starter

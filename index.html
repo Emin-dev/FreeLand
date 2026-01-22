@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>FreeLand - Tradable Posts</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #000;
+      --card: #111;
+      --border: #333;
+      --primary: #2e5bff;
+      --green: #00c48c;
+      --red: #ff4757;
+      --text: #fff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    #app {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .hide { display: none !important; }
+
+    #auth {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      padding: 40px 20px;
+      max-width: 400px;
+      margin: 100px auto;
+    }
+
+    #auth h1 {
+      font-size: 32px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input, textarea {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      width: 100%;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: var(--text);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      background: #254edb;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background: var(--card);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #balance {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    #header button {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+
+    #compose {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    #text {
+      min-height: 80px;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    .post {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      contain: layout style paint;
+      will-change: transform;
+      animation: slide-in 0.3s ease;
+    }
+
+    @keyframes slide-in {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .post .header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .post .header span:first-child {
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .value {
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    .post p {
+      margin: 15px 0;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .actions button {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    #dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+    }
+
+    .stat {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat h3 {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .stat p {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .stat small {
+      font-size: 14px;
+      color: var(--green);
+    }
+
+    #notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--card);
+      border: 1px solid var(--primary);
+      padding: 15px 20px;
+      border-radius: 8px;
+      animation: slide-in 0.3s ease;
+      z-index: 1000;
+    }
+
+    #modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      background: var(--card);
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .progress-bar {
+      background: var(--border);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+
+    .progress-fill {
+      background: var(--primary);
+      height: 100%;
+      transition: width 0.25s ease;
+    }
+
+    #leaderboard {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    #leaderboard h2 {
+      margin: 20px 0 10px 0;
+      font-size: 18px;
+    }
+
+    .rank {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      #app {
+        padding: 10px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="auth">
+      <h1>🏝️ FreeLand</h1>
+      <input id="user" placeholder="Username" autocomplete="username">
+      <input id="pass" type="password" placeholder="Password" autocomplete="current-password">
+      <button onclick="auth(true)">Sign Up</button>
+      <button onclick="auth(false)">Log In</button>
+    </div>
+
+    <div id="main" class="hide">
+      <div id="header">
+        <span id="balance">💰 100</span>
+        <div style="display:flex;gap:10px">
+          <button onclick="showView('feed')">Feed</button>
+          <button onclick="showView('dashboard')">Stats</button>
+          <button onclick="showView('leaderboard')">Top</button>
+          <button onclick="logout()">Exit</button>
+        </div>
+      </div>
+
+      <div id="compose">
+        <textarea id="text" maxlength="280" placeholder="What's happening?"></textarea>
+        <button onclick="createPost()">Post</button>
+      </div>
+
+      <div id="feed"></div>
+      <div id="dashboard" class="hide"></div>
+      <div id="leaderboard" class="hide"></div>
+    </div>
+  </div>
+
+  <script>
+    let ws, uid, username
+    const auth_div = document.getElementById('auth')
+    const main_div = document.getElementById('main')
+    const feed = document.getElementById('feed')
+    const balance = document.getElementById('balance')
+    const dashboard = document.getElementById('dashboard')
+    const leaderboard = document.getElementById('leaderboard')
+    const compose = document.getElementById('compose')
+
+    async function auth(signup) {
+      const u = document.getElementById('user').value.trim()
+      const p = document.getElementById('pass').value
+
+      if (!u || u.length < 3 || u.length > 20 || !p || p.length < 8) {
+        showNotification('Username must be 3-20 chars, password min 8 chars')
+        return
+      }
+
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p, signup })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        showNotification(err.error || 'Authentication failed')
+        return
+      }
+
+      const data = await res.json()
+      uid = data.id
+      username = data.username
+      balance.textContent = '💰 ' + data.coins
+
+      auth_div.classList.add('hide')
+      main_div.classList.remove('hide')
+
+      connectWS()
+      loadFeed()
+    }
+
+    function connectWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+      ws = new WebSocket(`${protocol}//${location.host}/ws`)
+
+      ws.onopen = () => {
+        showNotification('Connected!')
+      }
+
+      ws.onmessage = (e) => {
+        const { t, d } = JSON.parse(e.data)
+
+        if (t === 'new') addPost(d)
+
+        if (t === 'update') {
+          const likes_el = document.getElementById('l' + d.id)
+          const reshares_el = document.getElementById('r' + d.id)
+          const value_el = document.getElementById('v' + d.id)
+
+          if (d.likes && likes_el) likes_el.textContent = d.likes
+          if (d.reshares && reshares_el) {
+            reshares_el.textContent = d.reshares
+            if (value_el) value_el.textContent = '💰 ' + d.value
+          }
+        }
+
+        if (t === 'balance') {
+          balance.textContent = '💰 ' + d.coins
+          showNotification(d.msg)
+        }
+
+        if (t === 'error') {
+          showNotification(d.msg)
+        }
+
+        if (t === 'progress') {
+          updateProgress(d.id, d.p)
+        }
+      }
+
+      ws.onerror = () => showNotification('Connection error')
+      ws.onclose = () => showNotification('Disconnected')
+    }
+
+    async function loadFeed() {
+      const res = await fetch('/api/feed')
+      const posts = await res.json()
+      feed.innerHTML = ''
+      posts.forEach(p => addPost(p))
+    }
+
+    function addPost(p) {
+      const el = document.createElement('div')
+      el.className = 'post'
+      el.id = 'p' + p.id
+      el.innerHTML = `
+        <div class="header">
+          <span>@${escapeHtml(p.username)}</span>
+          <span class="value" id="v${p.id}">💰 ${p.value}</span>
+        </div>
+        <p>${escapeHtml(p.text)}</p>
+        <div class="actions">
+          <button onclick="like(${p.id})">❤️ <span id="l${p.id}">${p.likes}</span></button>
+          <button onclick="reshare(${p.id})">🔄 <span id="r${p.id}">${p.reshares}</span></button>
+          <button onclick="buy(${p.id})">📈 Buy</button>
+        </div>
+      `
+      feed.prepend(el)
+    }
+
+    function createPost() {
+      const text = document.getElementById('text').value.trim()
+      if (!text || text.length > 280) {
+        showNotification('Post must be 1-280 characters')
+        return
+      }
+      ws.send(JSON.stringify({ t: 'post', d: { uid, text } }))
+      document.getElementById('text').value = ''
+    }
+
+    function like(id) {
+      ws.send(JSON.stringify({ t: 'like', d: { uid, id } }))
+    }
+
+    function reshare(id) {
+      ws.send(JSON.stringify({ t: 'reshare', d: { uid, id } }))
+    }
+
+    function buy(id) {
+      ws.send(JSON.stringify({ t: 'buy', d: { uid, id } }))
+    }
+
+    async function showView(view) {
+      feed.classList.add('hide')
+      dashboard.classList.add('hide')
+      leaderboard.classList.add('hide')
+      compose.classList.add('hide')
+
+      if (view === 'feed') {
+        feed.classList.remove('hide')
+        compose.classList.remove('hide')
+      } else if (view === 'dashboard') {
+        dashboard.classList.remove('hide')
+        await loadDashboard()
+      } else if (view === 'leaderboard') {
+        leaderboard.classList.remove('hide')
+        await loadLeaderboard()
+      }
+    }
+
+    async function loadDashboard() {
+      const res = await fetch(`/api/stats?uid=${uid}`)
+      const data = await res.json()
+
+      dashboard.innerHTML = `
+        <div class="stat">
+          <h3>💰 Balance</h3>
+          <p>${data.coins}</p>
+        </div>
+        <div class="stat">
+          <h3>📝 Posts</h3>
+          <p>${data.post_count}</p>
+        </div>
+        <div class="stat">
+          <h3>📈 Portfolio</h3>
+          <p>${data.portfolio_value}</p>
+          <small>${data.roi > 0 ? '+' : ''}${data.roi}%</small>
+        </div>
+      `
+    }
+
+    async function loadLeaderboard() {
+      const res = await fetch('/api/leaderboard')
+      const data = await res.json()
+
+      leaderboard.innerHTML = `
+        <h2>💰 Richest Users</h2>
+        ${data.richest.map((u, i) => `
+          <div class="rank">
+            <span>${i + 1}. @${escapeHtml(u.username)}</span>
+            <span>💰 ${u.coins}</span>
+          </div>
+        `).join('')}
+
+        <h2>📈 Most Valuable Posts</h2>
+        ${data.valuable.map((p, i) => `
+          <div class="rank">
+            <span>${i + 1}. ${escapeHtml(p.text.slice(0, 40))}${p.text.length > 40 ? '...' : ''}</span>
+            <span>💰 ${p.value}</span>
+          </div>
+        `).join('')}
+
+        <h2>🏆 Top Traders</h2>
+        ${data.traders.map((t, i) => `
+          <div class="rank">
+            <span>${i + 1}. @${escapeHtml(t.username)}</span>
+            <span>${t.trades} trades</span>
+          </div>
+        `).join('')}
+      `
+    }
+
+    function showNotification(msg) {
+      let notif = document.getElementById('notification')
+      if (!notif) {
+        notif = document.createElement('div')
+        notif.id = 'notification'
+        document.body.appendChild(notif)
+      }
+      notif.textContent = msg
+      setTimeout(() => notif.remove(), 3000)
+    }
+
+    function updateProgress(id, p) {
+      let modal = document.getElementById('modal')
+      if (!modal && p < 100) {
+        modal = document.createElement('div')
+        modal.id = 'modal'
+        modal.innerHTML = `
+          <div class="modal-content">
+            <h2>Sending Coins...</h2>
+            <div class="progress-bar">
+              <div class="progress-fill" id="fill-${id}" style="width:0%"></div>
+            </div>
+          </div>
+        `
+        document.body.appendChild(modal)
+      }
+
+      const fill = document.getElementById('fill-' + id)
+      if (fill) fill.style.width = p + '%'
+
+      if (p >= 100) {
+        setTimeout(() => {
+          if (modal) modal.remove()
+        }, 500)
+      }
+    }
+
+    function logout() {
+      if (ws) ws.close()
+      uid = null
+      username = null
+      main_div.classList.add('hide')
+      auth_div.classList.remove('hide')
+      feed.innerHTML = ''
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    }
+
+    document.getElementById('text').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) createPost()
+    })
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "freeland",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun server.ts",
+    "dev": "bun --watch server.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
