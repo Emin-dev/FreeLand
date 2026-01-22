@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>FreeLand - Tradable Posts</title>
+  <title>FreeLand - Professional Trading Platform</title>
   <style>
     * {
       margin: 0;
@@ -12,568 +12,758 @@
     }
 
     :root {
-      --bg: #000;
-      --card: #111;
-      --border: #333;
-      --primary: #2e5bff;
-      --green: #00c48c;
-      --red: #ff4757;
-      --gold: #ffd700;
-      --text: #fff;
+      --bg-primary: #0f0f0f;
+      --bg-secondary: #1a1a1a;
+      --bg-tertiary: #242424;
+      --border-primary: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-blue: #3b82f6;
+      --accent-blue-hover: #2563eb;
+      --accent-green: #10b981;
+      --accent-green-hover: #059669;
+      --accent-red: #ef4444;
+      --accent-red-hover: #dc2626;
+      --accent-amber: #f59e0b;
+      --text-primary: #ffffff;
+      --text-secondary: #a1a1a1;
+      --text-tertiary: #6b6b6b;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
 
     #app {
-      max-width: 600px;
+      max-width: 680px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 24px;
+      min-height: 100vh;
     }
 
     .hide { display: none !important; }
 
+    /* Animations */
     @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
-    @keyframes slideIn {
-      from { transform: translateY(-20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     @keyframes shimmer {
-      0% { background-position: -1000px 0; }
-      100% { background-position: 1000px 0; }
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
     }
 
+    /* Auth Screen */
     #auth {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      padding: 40px 20px;
-      max-width: 400px;
+      max-width: 420px;
       margin: 100px auto;
-      animation: fadeIn 0.5s ease;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 16px;
+      padding: 40px;
+      animation: slideUp 0.5s ease;
+      box-shadow: var(--shadow-lg);
     }
 
     #auth h1 {
-      font-size: 32px;
+      font-size: 28px;
+      font-weight: 700;
       text-align: center;
-      margin-bottom: 20px;
-      animation: pulse 2s infinite;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .auth-subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     input, textarea {
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 16px;
       width: 100%;
-      transition: all 0.3s ease;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      color: var(--text-primary);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      transition: all 0.2s ease;
     }
 
     input:focus, textarea:focus {
       outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(46, 91, 255, 0.1);
-      transform: translateY(-2px);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
+    input::placeholder, textarea::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    /* Buttons */
     button {
-      background: var(--primary);
-      color: var(--text);
+      width: 100%;
+      background: var(--accent-blue);
+      color: var(--text-primary);
       border: none;
-      padding: 12px 24px;
+      padding: 14px 24px;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    button::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      transform: translate(-50%, -50%);
-      transition: width 0.6s, height 0.6s;
+    button:hover:not(:disabled) {
+      background: var(--accent-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
 
-    button:hover::before {
-      width: 300px;
-      height: 300px;
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.4);
-    }
-
-    button:active {
+    button:active:not(:disabled) {
       transform: translateY(0);
     }
 
-    button.liked { 
-      background: var(--red); 
-    }
-
-    button.reshared { 
-      background: var(--green); 
-    }
-
-    button.owned { 
-      background: var(--gold); 
-      color: #000; 
-    }
-
     button:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
+    button.btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-primary);
+    }
+
+    button.btn-secondary:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      border-color: var(--border-hover);
+    }
+
+    button.btn-success {
+      background: var(--accent-green);
+    }
+
+    button.btn-success:hover:not(:disabled) {
+      background: var(--accent-green-hover);
+    }
+
+    button.btn-danger {
+      background: var(--accent-red);
+    }
+
+    button.btn-danger:hover:not(:disabled) {
+      background: var(--accent-red-hover);
+    }
+
+    /* Header */
     #header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px;
-      background: linear-gradient(135deg, var(--card), #1a1a1a);
-      border-radius: 12px;
-      margin-bottom: 20px;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      animation: slideIn 0.5s ease;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+      animation: slideUp 0.3s ease;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .header-info h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     #balance {
-      font-size: 24px;
-      font-weight: bold;
-      animation: pulse 2s infinite;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
     }
 
-    #dm-status {
-      font-size: 12px;
-      color: var(--gold);
-      margin-top: 5px;
-    }
-
-    #header button {
-      padding: 8px 16px;
-      font-size: 14px;
-    }
-
-    .btn-group {
+    .nav-tabs {
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
     }
 
+    .nav-tabs button {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Compose Box */
     #compose {
-      background: var(--card);
-      padding: 20px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
       border-radius: 12px;
-      margin-bottom: 20px;
-      animation: slideIn 0.6s ease;
-      border: 2px solid transparent;
-      transition: all 0.3s ease;
-    }
-
-    #compose:focus-within {
-      border-color: var(--primary);
-      box-shadow: 0 0 20px rgba(46, 91, 255, 0.2);
+      padding: 20px;
+      margin-bottom: 24px;
+      animation: slideUp 0.4s ease;
     }
 
     #text {
-      min-height: 80px;
+      min-height: 120px;
       resize: vertical;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compose-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     #char-count {
-      text-align: right;
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-tertiary);
     }
 
+    #char-count.warning {
+      color: var(--accent-amber);
+    }
+
+    #char-count.danger {
+      color: var(--accent-red);
+    }
+
+    .compose-footer button {
+      width: auto;
+      min-width: 120px;
+    }
+
+    /* Post Card */
     .post {
-      background: var(--card);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
       border-radius: 12px;
       padding: 20px;
-      margin-bottom: 15px;
-      contain: layout style paint;
-      will-change: transform;
-      animation: slideIn 0.3s ease;
-      transition: all 0.3s ease;
+      margin-bottom: 16px;
+      animation: slideUp 0.3s ease;
+      transition: all 0.2s ease;
     }
 
     .post:hover {
-      border-color: var(--primary);
-      transform: translateX(5px);
-      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.2);
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-sm);
     }
 
     .post.reshared-post {
-      border-left: 4px solid var(--green);
-      background: linear-gradient(to right, rgba(0,196,140,0.05), var(--card));
+      border-left: 3px solid var(--accent-green);
     }
 
-    .post .header {
+    .post-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
+      align-items: flex-start;
+      margin-bottom: 16px;
     }
 
-    .post .header span:first-child {
-      font-weight: bold;
-      color: var(--primary);
+    .post-author {
+      font-weight: 600;
+      color: var(--accent-blue);
+      font-size: 15px;
     }
 
-    .value {
-      color: var(--green);
-      font-weight: bold;
-      animation: pulse 2s infinite;
+    .post-value {
+      color: var(--accent-green);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
     }
 
-    .post p {
-      margin: 15px 0;
-      line-height: 1.5;
+    .post-content {
+      color: var(--text-primary);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 16px;
       word-wrap: break-word;
     }
 
     .original-post {
-      background: rgba(46, 91, 255, 0.1);
-      border-left: 3px solid var(--primary);
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-
-    .original-post .author {
-      color: var(--primary);
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-      flex-wrap: wrap;
-    }
-
-    .actions button {
-      flex: 1;
-      padding: 8px;
-      font-size: 14px;
-      min-width: 80px;
-    }
-
-    #dashboard, #portfolio-view, #dm-view {
-      animation: slideIn 0.5s ease;
-    }
-
-    #dashboard {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 15px;
-    }
-
-    .stat {
-      background: linear-gradient(135deg, var(--card), #1a1a1a);
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-      border: 1px solid var(--border);
-      transition: all 0.3s ease;
-      animation: fadeIn 0.5s ease;
-    }
-
-    .stat:hover {
-      transform: translateY(-5px);
-      border-color: var(--primary);
-      box-shadow: 0 10px 30px rgba(46, 91, 255, 0.3);
-    }
-
-    .stat h3 {
-      font-size: 14px;
-      color: #888;
-      margin-bottom: 10px;
-    }
-
-    .stat p {
-      font-size: 28px;
-      font-weight: bold;
-    }
-
-    .stat small {
-      font-size: 14px;
-    }
-
-    .profit { color: var(--green); }
-    .loss { color: var(--red); }
-
-    #notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--card);
-      border: 1px solid var(--primary);
-      padding: 15px 20px;
+      background: rgba(59, 130, 246, 0.05);
+      border-left: 3px solid var(--accent-blue);
+      padding: 12px 16px;
+      margin: 16px 0;
       border-radius: 8px;
-      animation: slideIn 0.3s ease;
-      z-index: 1000;
-      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.4);
-      max-width: 300px;
     }
 
-    #modal {
+    .original-post-author {
+      color: var(--accent-blue);
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .original-post-content {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Post Actions */
+    .post-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    .action-btn {
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      border-color: var(--border-hover);
+    }
+
+    .action-btn.active-like {
+      color: var(--accent-red);
+      border-color: var(--accent-red);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .action-btn.active-reshare {
+      color: var(--accent-green);
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .action-btn.active-own {
+      color: var(--accent-amber);
+      border-color: var(--accent-amber);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    /* Modal */
+    .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.9);
+      background: rgba(0, 0, 0, 0.85);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
-      animation: fadeIn 0.3s ease;
+      z-index: 10000;
+      padding: 20px;
+      animation: fadeIn 0.2s ease;
+      backdrop-filter: blur(4px);
     }
 
-    .modal-content {
-      background: var(--card);
-      padding: 30px;
-      border-radius: 12px;
-      max-width: 400px;
-      width: 90%;
-      animation: slideIn 0.3s ease;
-      border: 1px solid var(--primary);
-    }
-
-    .modal-content h2 {
-      margin-bottom: 20px;
-    }
-
-    .modal-content textarea {
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 16px;
+      max-width: 540px;
       width: 100%;
-      margin-bottom: 15px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+      box-shadow: var(--shadow-lg);
     }
 
-    .modal-content .btn-group {
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border-primary);
       display: flex;
-      gap: 10px;
-      margin-top: 20px;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .modal-content .btn-group button {
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-footer {
+      padding: 20px 24px;
+      border-top: 1px solid var(--border-primary);
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-footer button {
       flex: 1;
     }
 
-    .progress-bar {
-      background: var(--border);
-      height: 8px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 20px 0;
-    }
-
-    .progress-fill {
-      background: linear-gradient(90deg, var(--primary), var(--green));
-      height: 100%;
-      transition: width 0.25s ease;
-      background-size: 200% 100%;
-      animation: shimmer 2s infinite;
-    }
-
-    #leaderboard {
-      background: var(--card);
-      padding: 20px;
-      border-radius: 12px;
-      animation: slideIn 0.5s ease;
-    }
-
-    #leaderboard h2 {
-      margin: 20px 0 10px 0;
-      font-size: 18px;
-    }
-
-    .rank {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px;
-      border-bottom: 1px solid var(--border);
-      transition: all 0.3s ease;
-    }
-
-    .rank:hover {
-      background: rgba(46, 91, 255, 0.1);
-      transform: translateX(5px);
-    }
-
-    .portfolio-item {
-      background: var(--card);
-      border: 1px solid var(--border);
+    .checkbox-card {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
       border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 10px;
-      transition: all 0.3s ease;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .checkbox-card:hover {
+      border-color: var(--accent-blue);
+      background: var(--bg-secondary);
+    }
+
+    .checkbox-card input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin-top: 2px;
+    }
+
+    .checkbox-content {
+      flex: 1;
+    }
+
+    .checkbox-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .checkbox-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .stat-change {
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .stat-change.positive { color: var(--accent-green); }
+    .stat-change.negative { color: var(--accent-red); }
+
+    /* Portfolio */
+    .portfolio-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
     }
 
     .portfolio-item:hover {
-      border-color: var(--primary);
-      transform: translateX(5px);
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-sm);
     }
 
-    .portfolio-item .header {
+    .portfolio-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
-    .portfolio-item button {
-      margin-top: 10px;
-      width: 100%;
+    .portfolio-author {
+      font-weight: 600;
+      color: var(--accent-blue);
     }
 
-    #dm-view {
-      background: var(--card);
-      padding: 20px;
+    .portfolio-profit {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .portfolio-content {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .portfolio-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-bottom: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    /* DM View */
+    #messages-container {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
       border-radius: 12px;
-    }
-
-    #messages {
-      max-height: 400px;
+      padding: 20px;
+      max-height: 500px;
       overflow-y: auto;
       margin-bottom: 20px;
-      padding: 10px;
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
     }
 
     .message {
-      padding: 10px;
-      margin: 10px 0;
+      padding: 12px 16px;
       border-radius: 8px;
-      animation: slideIn 0.3s ease;
+      margin-bottom: 12px;
+      max-width: 80%;
+      animation: slideUp 0.3s ease;
     }
 
     .message.sent {
-      background: var(--primary);
-      margin-left: 20%;
+      background: var(--accent-blue);
+      margin-left: auto;
       text-align: right;
     }
 
     .message.received {
-      background: var(--card);
-      margin-right: 20%;
-      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
     }
 
-    .message .username {
+    .message-author {
       font-size: 12px;
-      opacity: 0.7;
-      margin-bottom: 5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
     }
 
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 15px 0;
-      cursor: pointer;
+    .message.sent .message-author {
+      color: rgba(255,255,255,0.7);
     }
 
-    .checkbox-label input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
+    .dm-compose {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      padding: 20px;
     }
 
-    @media (max-width: 600px) {
+    .dm-unlock {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .dm-unlock-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .dm-unlock h3 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .dm-unlock p {
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* Notification */
+    #notification {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--accent-blue);
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10001;
+      animation: slideUp 0.3s ease;
+      max-width: 360px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
       #app {
-        padding: 10px;
+        padding: 16px;
       }
 
-      .actions {
-        flex-direction: column;
+      .post-actions {
+        grid-template-columns: repeat(2, 1fr);
       }
 
-      .btn-group {
+      .nav-tabs {
         flex-wrap: wrap;
       }
-    }
 
-    @keyframes confetti {
-      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-    }
-
-    .confetti {
-      position: fixed;
-      width: 10px;
-      height: 10px;
-      background: var(--primary);
-      animation: confetti 3s ease-out forwards;
-      z-index: 9999;
+      .nav-tabs button {
+        font-size: 13px;
+        padding: 8px 12px;
+      }
     }
   </style>
 </head>
 <body>
   <div id="app">
+    <!-- Auth -->
     <div id="auth">
       <h1>🏝️ FreeLand</h1>
-      <input id="user" placeholder="Username" autocomplete="username">
-      <input id="pass" type="password" placeholder="Password" autocomplete="current-password">
-      <button onclick="auth(true)">Sign Up</button>
-      <button onclick="auth(false)">Log In</button>
+      <p class="auth-subtitle">Professional Trading Platform</p>
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="user" placeholder="Enter username" autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="pass" type="password" placeholder="Enter password" autocomplete="current-password">
+      </div>
+
+      <button onclick="auth(true)" style="margin-bottom:12px">Create Account</button>
+      <button onclick="auth(false)" class="btn-secondary">Sign In</button>
     </div>
 
+    <!-- Main -->
     <div id="main" class="hide">
+      <!-- Header -->
       <div id="header">
-        <div>
-          <div id="balance">💰 100</div>
-          <div id="dm-status"></div>
+        <div class="header-top">
+          <div class="header-info">
+            <h2>Balance</h2>
+            <div id="balance">💰 100</div>
+          </div>
         </div>
-        <div class="btn-group">
-          <button onclick="showView('feed')">Feed</button>
-          <button onclick="showView('dashboard')">Stats</button>
-          <button onclick="showView('portfolio')">Portfolio</button>
-          <button onclick="showView('leaderboard')">Top</button>
-          <button onclick="showView('dm')">DM</button>
-          <button onclick="logout()">Exit</button>
+        <div class="nav-tabs">
+          <button onclick="showView('feed')">📰 Feed</button>
+          <button onclick="showView('dashboard')" class="btn-secondary">📊 Stats</button>
+          <button onclick="showView('portfolio')" class="btn-secondary">💼 Portfolio</button>
+          <button onclick="showView('leaderboard')" class="btn-secondary">🏆 Top</button>
+          <button onclick="showView('dm')" class="btn-secondary">💬 DM</button>
+          <button onclick="logout()" class="btn-danger">Exit</button>
         </div>
       </div>
 
+      <!-- Compose -->
       <div id="compose">
-        <textarea id="text" maxlength="280" placeholder="What's happening?"></textarea>
-        <div id="char-count">0 / 280</div>
-        <button onclick="createPost()">Post</button>
+        <textarea id="text" maxlength="280" placeholder="Share your thoughts..."></textarea>
+        <div class="compose-footer">
+          <div id="char-count">0 / 280</div>
+          <button onclick="createPost()">Publish</button>
+        </div>
       </div>
 
+      <!-- Views -->
       <div id="feed"></div>
       <div id="dashboard" class="hide"></div>
       <div id="portfolio-view" class="hide"></div>
@@ -583,71 +773,62 @@
   </div>
 
   <script>
-    let ws, uid, username
-    const auth_div = document.getElementById('auth')
-    const main_div = document.getElementById('main')
-    const feed = document.getElementById('feed')
-    const balance = document.getElementById('balance')
-    const dashboard = document.getElementById('dashboard')
-    const leaderboard = document.getElementById('leaderboard')
-    const compose = document.getElementById('compose')
-    const portfolioView = document.getElementById('portfolio-view')
-    const dmView = document.getElementById('dm-view')
-    const dmStatus = document.getElementById('dm-status')
+    let ws, uid, username, dmActive = false
 
-    document.getElementById('text').addEventListener('input', (e) => {
+    const textArea = document.getElementById('text')
+    const charCount = document.getElementById('char-count')
+
+    textArea?.addEventListener('input', (e) => {
       const count = e.target.value.length
-      document.getElementById('char-count').textContent = count + ' / 280'
-      document.getElementById('char-count').style.color = count > 260 ? 'var(--red)' : '#888'
+      charCount.textContent = count + ' / 280'
+      charCount.className = ''
+      if (count > 260) charCount.classList.add('danger')
+      else if (count > 240) charCount.classList.add('warning')
     })
 
     async function auth(signup) {
       const u = document.getElementById('user').value.trim()
       const p = document.getElementById('pass').value
 
-      if (!u || u.length < 3 || u.length > 20 || !p || p.length < 8) {
-        showNotification('Username must be 3-20 chars, password min 8 chars')
+      if (!u || u.length < 3 || u.length > 20) {
+        showNotification('Username: 3-20 characters required')
         return
       }
 
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: u, password: p, signup })
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        showNotification(err.error || 'Authentication failed')
+      if (!p || p.length < 8) {
+        showNotification('Password: minimum 8 characters')
         return
       }
 
-      const data = await res.json()
-      uid = data.id
-      username = data.username
-      balance.textContent = '💰 ' + data.coins
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p, signup })
+        })
 
-      updateDMStatus(data.dm_until)
+        const data = await res.json()
 
-      document.getElementById('user').value = ''
-      document.getElementById('pass').value = ''
+        if (!res.ok) {
+          showNotification(data.error || 'Authentication failed')
+          return
+        }
 
-      auth_div.classList.add('hide')
-      main_div.classList.remove('hide')
+        uid = data.id
+        username = data.username
+        dmActive = data.dm_until && data.dm_until > Date.now()
+        document.getElementById('balance').textContent = '💰 ' + data.coins
 
-      connectWS()
-      loadFeed()
-      showConfetti()
-    }
+        document.getElementById('user').value = ''
+        document.getElementById('pass').value = ''
+        document.getElementById('auth').classList.add('hide')
+        document.getElementById('main').classList.remove('hide')
 
-    function updateDMStatus(dmUntil) {
-      if (dmUntil && dmUntil > Date.now()) {
-        const remaining = Math.ceil((dmUntil - Date.now()) / 60000)
-        dmStatus.textContent = `DM Active (${remaining}min left)`
-        dmStatus.style.color = 'var(--gold)'
-      } else {
-        dmStatus.textContent = 'DM Locked (50 coins/hour)'
-        dmStatus.style.color = '#888'
+        connectWS()
+        loadFeed()
+        showNotification('Welcome to FreeLand')
+      } catch (e) {
+        showNotification('Connection error')
       }
     }
 
@@ -655,167 +836,143 @@
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
       ws = new WebSocket(`${protocol}//${location.host}/ws`)
 
-      ws.onopen = () => {
-        showNotification('Connected! 🎉')
-      }
+      ws.onopen = () => console.log('Connected')
 
       ws.onmessage = (e) => {
         const { t, d } = JSON.parse(e.data)
 
         if (t === 'new') addPost(d)
-
-        if (t === 'remove') {
-          const posts = document.querySelectorAll('.post')
-          posts.forEach(post => {
-            if (post.dataset.userId == d.uid && post.dataset.originalId == d.original_id) {
-              post.remove()
-            }
-          })
-        }
-
-        if (t === 'update') {
-          updatePostUI(d)
-        }
-
+        if (t === 'remove') removePost(d)
+        if (t === 'update') updatePost(d)
         if (t === 'balance') {
-          balance.textContent = '💰 ' + d.coins
+          document.getElementById('balance').textContent = '💰 ' + d.coins
           showNotification(d.msg)
         }
-
-        if (t === 'success') {
-          showNotification(d.msg)
-        }
-
-        if (t === 'error') {
-          showNotification(d.msg)
-        }
-
+        if (t === 'success') showNotification(d.msg)
+        if (t === 'error') showNotification(d.msg)
         if (t === 'dm_active') {
-          updateDMStatus(d.dm_until)
-          balance.textContent = '💰 ' + d.coins
-          showNotification(d.msg)
-          showConfetti()
+          dmActive = true
+          document.getElementById('balance').textContent = '💰 ' + d.coins
+          showNotification('DM access activated')
         }
-
-        if (t === 'message') {
-          addMessage(d)
-        }
-
-        if (t === 'progress') {
-          updateProgress(d.id, d.p)
-        }
+        if (t === 'message') addMessage(d)
       }
 
       ws.onerror = () => showNotification('Connection error')
       ws.onclose = () => showNotification('Disconnected')
     }
 
-    function updatePostUI(d) {
-      const likeBtn = document.getElementById('likebtn' + d.id)
-      const reshareBtn = document.getElementById('resharebtn' + d.id)
-      const buyBtn = document.getElementById('buybtn' + d.id)
-      const sellBtn = document.getElementById('sellbtn' + d.id)
-      const likeCount = document.getElementById('lc' + d.id)
-      const reshareCount = document.getElementById('rc' + d.id)
-      const valueEl = document.getElementById('v' + d.id)
-
-      if (d.like_count !== undefined && likeCount) {
-        likeCount.textContent = d.like_count
-      }
-
-      if (d.reshare_count !== undefined && reshareCount) {
-        reshareCount.textContent = d.reshare_count
-      }
-
-      if (d.value !== undefined && valueEl) {
-        valueEl.textContent = '💰 ' + d.value
-      }
-
-      if (d.user_id === uid) {
-        if (d.liked !== undefined && likeBtn) {
-          if (d.liked) {
-            likeBtn.classList.add('liked')
-          } else {
-            likeBtn.classList.remove('liked')
-          }
-        }
-
-        if (d.reshared !== undefined && reshareBtn) {
-          if (d.reshared) {
-            reshareBtn.classList.add('reshared')
-          } else {
-            reshareBtn.classList.remove('reshared')
-          }
-        }
-
-        if (d.owns !== undefined && sellBtn) {
-          if (d.owns) {
-            sellBtn.classList.add('owned')
-            sellBtn.textContent = '📉 Sell (Owned)'
-          } else {
-            sellBtn.classList.remove('owned')
-            sellBtn.textContent = '📉 Sell'
-          }
-        }
-      }
-    }
-
     async function loadFeed() {
-      const res = await fetch(`/api/feed?uid=${uid}`)
-      const posts = await res.json()
-      feed.innerHTML = ''
-      posts.forEach(p => addPost(p))
+      try {
+        const res = await fetch(`/api/feed?uid=${uid}`)
+        const posts = await res.json()
+        document.getElementById('feed').innerHTML = ''
+        posts.forEach(p => addPost(p))
+      } catch (e) {
+        showNotification('Error loading feed')
+      }
     }
 
     function addPost(p) {
+      const feed = document.getElementById('feed')
       const el = document.createElement('div')
-      el.className = 'post'
-      if (p.original_post_id) el.className += ' reshared-post'
-      el.id = 'p' + p.id
-      el.dataset.userId = p.user_id
-      el.dataset.originalId = p.original_post_id || ''
+      el.className = 'post' + (p.original_post_id ? ' reshared-post' : '')
+      el.id = 'post-' + p.id
 
       let originalHTML = ''
       if (p.original_post_id && p.original_text) {
         originalHTML = `
           <div class="original-post">
-            <div class="author">🔄 Originally by @${escapeHtml(p.original_author)}</div>
-            <div>${escapeHtml(p.original_text)}</div>
+            <div class="original-post-author">
+              <span>🔄</span>
+              <span>@${escapeHtml(p.original_author)}</span>
+            </div>
+            <div class="original-post-content">${escapeHtml(p.original_text)}</div>
           </div>
         `
       }
 
-      const likedClass = p.user_liked ? 'liked' : ''
-      const resharedClass = p.user_reshared ? 'reshared' : ''
-      const ownedClass = p.user_owns ? 'owned' : ''
-      const sellText = p.user_owns ? '📉 Sell (Owned)' : '📉 Sell'
-
       el.innerHTML = `
-        <div class="header">
-          <span>@${escapeHtml(p.username)}</span>
-          <span class="value" id="v${p.id}">💰 ${p.value}</span>
+        <div class="post-header">
+          <div class="post-author">@${escapeHtml(p.username)}</div>
+          <div class="post-value" id="value-${p.id}">💰 ${p.value}</div>
         </div>
-        ${p.text ? '<p>' + escapeHtml(p.text) + '</p>' : ''}
+        ${p.text ? `<div class="post-content">${escapeHtml(p.text)}</div>` : ''}
         ${originalHTML}
-        <div class="actions">
-          <button id="likebtn${p.id}" class="${likedClass}" onclick="like(${p.id})">❤️ <span id="lc${p.id}">${p.like_count}</span></button>
-          <button id="resharebtn${p.id}" class="${resharedClass}" onclick="openReshareModal(${p.id})">🔄 <span id="rc${p.id}">${p.reshare_count}</span></button>
-          <button id="buybtn${p.id}" onclick="buy(${p.id})">📈 Buy</button>
-          <button id="sellbtn${p.id}" class="${ownedClass}" onclick="sell(${p.id})">${sellText}</button>
+        <div class="post-actions">
+          <button class="action-btn ${p.user_liked ? 'active-like' : ''}" id="like-${p.id}" onclick="like(${p.id})">
+            <span>❤️</span>
+            <span id="like-count-${p.id}">${p.like_count}</span>
+          </button>
+          <button class="action-btn ${p.user_reshared ? 'active-reshare' : ''}" id="reshare-${p.id}" onclick="openReshareModal(${p.id})">
+            <span>🔄</span>
+            <span id="reshare-count-${p.id}">${p.reshare_count}</span>
+          </button>
+          <button class="action-btn" onclick="buy(${p.id})">
+            <span>📈</span>
+            <span>Buy</span>
+          </button>
+          <button class="action-btn ${p.user_owns ? 'active-own' : ''}" id="sell-${p.id}" onclick="sell(${p.id})">
+            <span>📉</span>
+            <span>Sell</span>
+          </button>
         </div>
       `
       feed.prepend(el)
     }
 
+    function removePost(d) {
+      document.querySelectorAll('.post').forEach(post => {
+        if (post.dataset.userId == d.uid && post.dataset.originalId == d.original_id) {
+          post.remove()
+        }
+      })
+    }
+
+    function updatePost(d) {
+      if (d.like_count !== undefined) {
+        const el = document.getElementById('like-count-' + d.id)
+        if (el) el.textContent = d.like_count
+      }
+
+      if (d.reshare_count !== undefined) {
+        const el = document.getElementById('reshare-count-' + d.id)
+        if (el) el.textContent = d.reshare_count
+      }
+
+      if (d.value !== undefined) {
+        const el = document.getElementById('value-' + d.id)
+        if (el) el.textContent = '💰 ' + d.value
+      }
+
+      if (d.user_id === uid) {
+        if (d.liked !== undefined) {
+          const btn = document.getElementById('like-' + d.id)
+          if (btn) btn.classList.toggle('active-like', d.liked)
+        }
+
+        if (d.reshared !== undefined) {
+          const btn = document.getElementById('reshare-' + d.id)
+          if (btn) btn.classList.toggle('active-reshare', d.reshared)
+        }
+
+        if (d.owns !== undefined) {
+          const btn = document.getElementById('sell-' + d.id)
+          if (btn) btn.classList.toggle('active-own', d.owns)
+        }
+      }
+    }
+
     function createPost() {
-      const text = document.getElementById('text').value.trim()
+      const text = textArea.value.trim()
       if (!text || text.length > 280) {
-        showNotification('Post must be 1-280 characters')
+        showNotification('Post: 1-280 characters required')
         return
       }
       ws.send(JSON.stringify({ t: 'post', d: { uid, text } }))
-      document.getElementById('text').value = ''
-      document.getElementById('char-count').textContent = '0 / 280'
+      textArea.value = ''
+      charCount.textContent = '0 / 280'
+      charCount.className = ''
     }
 
     function like(id) {
@@ -824,34 +981,44 @@
 
     function openReshareModal(id) {
       const modal = document.createElement('div')
-      modal.id = 'modal'
+      modal.className = 'modal-overlay'
       modal.innerHTML = `
-        <div class="modal-content">
-          <h2>Reshare Post</h2>
-          <textarea id="reshare-text" placeholder="Add your comment (optional)" maxlength="280"></textarea>
-          <label class="checkbox-label">
-            <input type="checkbox" id="show-original" checked>
-            <span>Show original post (allows auto-sell)</span>
-          </label>
-          <div class="btn-group">
-            <button onclick="reshare(${id})">Reshare</button>
-            <button onclick="closeReshareModal()">Cancel</button>
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">Reshare Post</div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Your Comment (Optional)</label>
+              <textarea id="reshare-text" maxlength="280" placeholder="Add your thoughts..." style="min-height:100px"></textarea>
+            </div>
+            <label class="checkbox-card">
+              <input type="checkbox" id="show-original" checked>
+              <div class="checkbox-content">
+                <div class="checkbox-title">Show Original Post</div>
+                <div class="checkbox-description">Recommended. Enables instant auto-sell. Hidden originals require manual buyer approval.</div>
+              </div>
+            </label>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn-success" onclick="reshare(${id})">Reshare</button>
           </div>
         </div>
       `
       document.body.appendChild(modal)
     }
 
-    function closeReshareModal() {
-      const modal = document.getElementById('modal')
-      if (modal) modal.remove()
+    function closeModal() {
+      document.querySelector('.modal-overlay')?.remove()
     }
 
     function reshare(id) {
       const text = document.getElementById('reshare-text')?.value.trim() || ''
-      const showOriginal = document.getElementById('show-original')?.checked
+      const showOriginal = document.getElementById('show-original')?.checked !== false
       ws.send(JSON.stringify({ t: 'reshare', d: { uid, id, text, show_original: showOriginal } }))
-      closeReshareModal()
+      closeModal()
     }
 
     function buy(id) {
@@ -863,28 +1030,28 @@
     }
 
     async function showView(view) {
-      feed.classList.add('hide')
-      dashboard.classList.add('hide')
-      leaderboard.classList.add('hide')
-      compose.classList.add('hide')
-      portfolioView.classList.add('hide')
-      dmView.classList.add('hide')
+      document.getElementById('feed').classList.add('hide')
+      document.getElementById('dashboard').classList.add('hide')
+      document.getElementById('portfolio-view').classList.add('hide')
+      document.getElementById('leaderboard').classList.add('hide')
+      document.getElementById('dm-view').classList.add('hide')
+      document.getElementById('compose').classList.add('hide')
 
       if (view === 'feed') {
-        feed.classList.remove('hide')
-        compose.classList.remove('hide')
+        document.getElementById('feed').classList.remove('hide')
+        document.getElementById('compose').classList.remove('hide')
         await loadFeed()
       } else if (view === 'dashboard') {
-        dashboard.classList.remove('hide')
+        document.getElementById('dashboard').classList.remove('hide')
         await loadDashboard()
       } else if (view === 'portfolio') {
-        portfolioView.classList.remove('hide')
+        document.getElementById('portfolio-view').classList.remove('hide')
         await loadPortfolio()
       } else if (view === 'leaderboard') {
-        leaderboard.classList.remove('hide')
+        document.getElementById('leaderboard').classList.remove('hide')
         await loadLeaderboard()
       } else if (view === 'dm') {
-        dmView.classList.remove('hide')
+        document.getElementById('dm-view').classList.remove('hide')
         await loadDM()
       }
     }
@@ -893,109 +1060,161 @@
       const res = await fetch(`/api/stats?uid=${uid}`)
       const data = await res.json()
 
-      const roiClass = data.roi >= 0 ? 'profit' : 'loss'
+      const roiClass = data.roi >= 0 ? 'positive' : 'negative'
+      const roiSign = data.roi > 0 ? '+' : ''
 
-      dashboard.innerHTML = `
-        <div class="stat">
-          <h3>💰 Balance</h3>
-          <p>${data.coins}</p>
-        </div>
-        <div class="stat">
-          <h3>📝 Posts</h3>
-          <p>${data.post_count}</p>
-        </div>
-        <div class="stat">
-          <h3>📈 Portfolio</h3>
-          <p>${data.portfolio_value}</p>
-          <small class="${roiClass}">${data.roi > 0 ? '+' : ''}${data.roi}%</small>
-        </div>
-        <div class="stat">
-          <h3>💬 DM Status</h3>
-          <p>${data.dm_active ? '✅' : '🔒'}</p>
-          ${!data.dm_active ? '<button onclick="buyDM()" style="margin-top:10px;padding:8px">Unlock (50💰)</button>' : ''}
+      document.getElementById('dashboard').innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">💰 Coins</div>
+            <div class="stat-value">${data.coins}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">📝 Posts</div>
+            <div class="stat-value">${data.post_count}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">📈 Portfolio</div>
+            <div class="stat-value">${data.portfolio_value}</div>
+            <div class="stat-change ${roiClass}">${roiSign}${data.roi}%</div>
+          </div>
         </div>
       `
     }
 
     async function loadPortfolio() {
-      portfolioView.innerHTML = '<h2 style="margin-bottom:20px">Your Portfolio</h2><div id="portfolio-list"></div>'
-      const list = document.getElementById('portfolio-list')
+      const res = await fetch(`/api/portfolio?uid=${uid}`)
+      const items = await res.json()
 
-      try {
-        const res = await fetch(`/api/portfolio?uid=${uid}`)
-        const items = await res.json()
+      const view = document.getElementById('portfolio-view')
 
-        if (items.length === 0) {
-          list.innerHTML = '<p style="text-align:center;color:#888">No assets yet. Buy some posts to start investing!</p>'
-          return
-        }
-
-        list.innerHTML = items.map(item => {
-          const profit = item.current_value - item.buy_price
-          const profitClass = profit >= 0 ? 'profit' : 'loss'
-          const profitSign = profit > 0 ? '+' : ''
-
-          return `
-            <div class="portfolio-item">
-              <div class="header">
-                <span>@${escapeHtml(item.author)}</span>
-                <span class="${profitClass}">${profitSign}${profit} (${profitSign}${Math.round((profit/item.buy_price)*100)}%)</span>
-              </div>
-              <p>${escapeHtml(item.text.slice(0, 100))}${item.text.length > 100 ? '...' : ''}</p>
-              <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:14px;color:#888">
-                <span>Bought: 💰${item.buy_price}</span>
-                <span>Now: 💰${item.current_value}</span>
-              </div>
-              <button onclick="sell(${item.post_id})" class="owned">Sell for 💰${item.current_value}</button>
-            </div>
-          `
-        }).join('')
-      } catch (err) {
-        list.innerHTML = '<p style="text-align:center;color:var(--red)">Error loading portfolio</p>'
+      if (items.length === 0) {
+        view.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-secondary)">Your portfolio is empty. Start investing in posts!</div>'
+        return
       }
+
+      view.innerHTML = items.map(item => {
+        const profit = item.current_value - item.buy_price
+        const profitClass = profit >= 0 ? 'positive' : 'negative'
+        const profitSign = profit > 0 ? '+' : ''
+        const profitPercent = Math.round((profit / item.buy_price) * 100)
+
+        return `
+          <div class="portfolio-item">
+            <div class="portfolio-header">
+              <div class="portfolio-author">@${escapeHtml(item.author)}</div>
+              <div class="portfolio-profit stat-change ${profitClass}">
+                ${profitSign}${profit} (${profitSign}${profitPercent}%)
+              </div>
+            </div>
+            <div class="portfolio-content">${escapeHtml(item.text.slice(0, 200))}${item.text.length > 200 ? '...' : ''}</div>
+            <div class="portfolio-stats">
+              <span>Bought: 💰${item.buy_price}</span>
+              <span>Current: 💰${item.current_value}</span>
+            </div>
+            <button onclick="sell(${item.post_id})" class="btn-success">Sell for 💰${item.current_value}</button>
+          </div>
+        `
+      }).join('')
     }
 
     async function loadLeaderboard() {
       const res = await fetch('/api/leaderboard')
       const data = await res.json()
 
-      leaderboard.innerHTML = `
-        <h2>💰 Richest Users</h2>
-        ${data.richest.map((u, i) => `
-          <div class="rank">
-            <span>${i + 1}. @${escapeHtml(u.username)}</span>
-            <span>💰 ${u.coins}</span>
-          </div>
-        `).join('')}
+      document.getElementById('leaderboard').innerHTML = `
+        <div style="margin-bottom:32px">
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:16px">💰 Richest Users</h2>
+          ${data.richest.map((u, i) => `
+            <div style="display:flex;justify-content:space-between;padding:16px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;margin-bottom:8px">
+              <span>${i + 1}. @${escapeHtml(u.username)}</span>
+              <span style="font-weight:700">💰 ${u.coins}</span>
+            </div>
+          `).join('')}
+        </div>
 
-        <h2>📈 Most Valuable Posts</h2>
-        ${data.valuable.map((p, i) => `
-          <div class="rank">
-            <span>${i + 1}. ${escapeHtml(p.text.slice(0, 40))}${p.text.length > 40 ? '...' : ''}</span>
-            <span>💰 ${p.value}</span>
-          </div>
-        `).join('')}
+        <div style="margin-bottom:32px">
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:16px">📈 Most Valuable Posts</h2>
+          ${data.valuable.map((p, i) => `
+            <div style="display:flex;justify-content:space-between;padding:16px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;margin-bottom:8px">
+              <span>${i + 1}. ${escapeHtml(p.text.slice(0, 50))}...</span>
+              <span style="font-weight:700;color:var(--accent-green)">💰 ${p.value}</span>
+            </div>
+          `).join('')}
+        </div>
 
-        <h2>🏆 Top Traders</h2>
-        ${data.traders.map((t, i) => `
-          <div class="rank">
-            <span>${i + 1}. @${escapeHtml(t.username)}</span>
-            <span>${t.trades} trades</span>
-          </div>
-        `).join('')}
+        <div>
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:16px">🏆 Top Traders</h2>
+          ${data.traders.map((t, i) => `
+            <div style="display:flex;justify-content:space-between;padding:16px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;margin-bottom:8px">
+              <span>${i + 1}. @${escapeHtml(t.username)}</span>
+              <span style="font-weight:700">${t.trades} trades</span>
+            </div>
+          `).join('')}
+        </div>
       `
     }
 
     async function loadDM() {
-      dmView.innerHTML = `
-        <h2>💬 Direct Messages</h2>
-        <div id="messages"></div>
-        <div>
-          <input id="dm-to" placeholder="Username to message" style="width:100%;margin-bottom:10px">
-          <textarea id="dm-text" placeholder="Type your message..." maxlength="500"></textarea>
+      const view = document.getElementById('dm-view')
+
+      if (!dmActive) {
+        view.innerHTML = `
+          <div class="dm-unlock">
+            <div class="dm-unlock-icon">🔒</div>
+            <h3>Direct Messages Locked</h3>
+            <p>Unlock private messaging to connect with other users</p>
+            <button onclick="buyDM()" class="btn-success" style="max-width:200px;margin:0 auto">Unlock DM (50💰)</button>
+          </div>
+        `
+        return
+      }
+
+      view.innerHTML = `
+        <div id="messages-container"></div>
+        <div class="dm-compose">
+          <div class="form-group">
+            <label class="form-label">Recipient Username</label>
+            <input id="dm-to" placeholder="@username">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea id="dm-text" maxlength="500" placeholder="Type your message..." style="min-height:100px"></textarea>
+          </div>
           <button onclick="sendMessage()">Send Message</button>
         </div>
       `
+
+      await loadMessages()
+    }
+
+    async function loadMessages() {
+      try {
+        const res = await fetch(`/api/messages?uid=${uid}`)
+        if (res.ok) {
+          const messages = await res.json()
+          const container = document.getElementById('messages-container')
+          if (container) {
+            messages.forEach(m => addMessage(m))
+          }
+        }
+      } catch (e) {
+        console.error('Error loading messages')
+      }
+    }
+
+    function addMessage(msg) {
+      const container = document.getElementById('messages-container')
+      if (!container) return
+
+      const el = document.createElement('div')
+      el.className = 'message ' + (msg.from_id === uid ? 'sent' : 'received')
+      el.innerHTML = `
+        <div class="message-author">@${escapeHtml(msg.from_username)}</div>
+        <div>${escapeHtml(msg.text)}</div>
+      `
+      container.appendChild(el)
+      container.scrollTop = container.scrollHeight
     }
 
     function buyDM() {
@@ -1003,29 +1222,28 @@
     }
 
     function sendMessage() {
-      const toUsername = document.getElementById('dm-to').value.trim()
-      const text = document.getElementById('dm-text').value.trim()
+      const toUser = document.getElementById('dm-to')?.value.trim()
+      const text = document.getElementById('dm-text')?.value.trim()
 
-      if (!toUsername || !text) {
+      if (!toUser || !text) {
         showNotification('Enter username and message')
         return
       }
 
-      ws.send(JSON.stringify({ t: 'send_message', d: { uid, to_id: toUsername, text } }))
+      ws.send(JSON.stringify({ t: 'send_message', d: { uid, to_id: toUser, text } }))
       document.getElementById('dm-text').value = ''
     }
 
-    function addMessage(msg) {
-      const messagesDiv = document.getElementById('messages')
-      if (!messagesDiv) return
-
-      const el = document.createElement('div')
-      el.className = 'message ' + (msg.from_id === uid ? 'sent' : 'received')
-      el.innerHTML = `
-        <div class="username">@${escapeHtml(msg.from_username)}</div>
-        <div>${escapeHtml(msg.text)}</div>
-      `
-      messagesDiv.prepend(el)
+    function logout() {
+      if (ws) ws.close()
+      uid = null
+      username = null
+      dmActive = false
+      document.getElementById('user').value = ''
+      document.getElementById('pass').value = ''
+      document.getElementById('main').classList.add('hide')
+      document.getElementById('auth').classList.remove('hide')
+      document.getElementById('feed').innerHTML = ''
     }
 
     function showNotification(msg) {
@@ -1039,66 +1257,13 @@
       setTimeout(() => notif.remove(), 3000)
     }
 
-    function updateProgress(id, p) {
-      let modal = document.getElementById('modal')
-      if (!modal && p < 100) {
-        modal = document.createElement('div')
-        modal.id = 'modal'
-        modal.innerHTML = `
-          <div class="modal-content">
-            <h2>Sending Coins...</h2>
-            <div class="progress-bar">
-              <div class="progress-fill" id="fill-${id}" style="width:0%"></div>
-            </div>
-          </div>
-        `
-        document.body.appendChild(modal)
-      }
-
-      const fill = document.getElementById('fill-' + id)
-      if (fill) fill.style.width = p + '%'
-
-      if (p >= 100) {
-        setTimeout(() => {
-          if (modal) modal.remove()
-          showConfetti()
-        }, 500)
-      }
-    }
-
-    function logout() {
-      if (ws) ws.close()
-      uid = null
-      username = null
-      document.getElementById('user').value = ''
-      document.getElementById('pass').value = ''
-      main_div.classList.add('hide')
-      auth_div.classList.remove('hide')
-      feed.innerHTML = ''
-    }
-
     function escapeHtml(text) {
       const div = document.createElement('div')
       div.textContent = text
       return div.innerHTML
     }
 
-    function showConfetti() {
-      const colors = ['#2e5bff', '#00c48c', '#ffd700', '#ff4757']
-      for (let i = 0; i < 50; i++) {
-        setTimeout(() => {
-          const confetti = document.createElement('div')
-          confetti.className = 'confetti'
-          confetti.style.left = Math.random() * 100 + 'vw'
-          confetti.style.background = colors[Math.floor(Math.random() * colors.length)]
-          confetti.style.animationDelay = Math.random() * 0.5 + 's'
-          document.body.appendChild(confetti)
-          setTimeout(() => confetti.remove(), 3000)
-        }, i * 30)
-      }
-    }
-
-    document.getElementById('text').addEventListener('keydown', (e) => {
+    textArea?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) createPost()
     })
   </script>
