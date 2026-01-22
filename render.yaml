@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: ./Dockerfile
     buildCommand: bun install
-    startCommand: bun server.ts
+    startCommand: bun server.js
     healthCheckPath: /
     autoDeploy: true
     envVars:
