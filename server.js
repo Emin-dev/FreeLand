@@ -19,7 +19,7 @@ const server = Bun.serve({
         try {
           const stmt = db.prepare("INSERT INTO users(username,password) VALUES(?,?)")
           const result = stmt.run(username, await Bun.password.hash(password))
-          const user = db.prepare("SELECT id,username,coins FROM users WHERE id=?").get(result.lastInsertRowid)
+          const user = db.prepare("SELECT id,username,coins,dm_until FROM users WHERE id=?").get(result.lastInsertRowid)
           return Response.json(user)
         } catch {
           return Response.json({ error: "Username taken" }, { status: 409 })
@@ -29,30 +29,43 @@ const server = Bun.serve({
         if (!user || !(await Bun.password.verify(password, user.password))) {
           return Response.json({ error: "Invalid credentials" }, { status: 401 })
         }
-        return Response.json({ id: user.id, username: user.username, coins: user.coins })
+        return Response.json({ id: user.id, username: user.username, coins: user.coins, dm_until: user.dm_until })
       }
     }
 
     if (url.pathname === "/api/feed") {
       const posts = db.prepare(`
-        SELECT p.*, u.username 
+        SELECT 
+          p.*, 
+          u.username,
+          CASE WHEN p.original_post_id IS NOT NULL THEN op.text ELSE NULL END as original_text,
+          CASE WHEN p.original_post_id IS NOT NULL THEN ou.username ELSE NULL END as original_author
         FROM posts p 
         JOIN users u ON p.user_id=u.id 
+        LEFT JOIN posts op ON p.original_post_id=op.id
+        LEFT JOIN users ou ON op.user_id=ou.id
+        WHERE p.deleted=0
         ORDER BY p.created DESC 
         LIMIT 100
       `).all()
+
+      posts.forEach(p => {
+        p.like_count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(p.id).c
+        p.reshare_count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(p.id).c
+      })
+
       return Response.json(posts)
     }
 
     if (url.pathname === "/api/stats") {
       const uid = parseInt(url.searchParams.get("uid"))
-      const user = db.prepare("SELECT coins FROM users WHERE id=?").get(uid)
-      const postCount = db.prepare("SELECT COUNT(*) as c FROM posts WHERE user_id=?").get(uid)
+      const user = db.prepare("SELECT coins,dm_until FROM users WHERE id=?").get(uid)
+      const postCount = db.prepare("SELECT COUNT(*) as c FROM posts WHERE user_id=? AND deleted=0").get(uid)
       const portfolio = db.prepare(`
         SELECT SUM(p.value) as total, SUM(pf.buy_price) as invested
         FROM portfolio pf
         JOIN posts p ON pf.post_id=p.id
-        WHERE pf.user_id=?
+        WHERE pf.user_id=? AND p.deleted=0
       `).get(uid)
 
       const totalValue = portfolio.total || 0
@@ -63,13 +76,14 @@ const server = Bun.serve({
         coins: user.coins,
         post_count: postCount.c,
         portfolio_value: totalValue,
-        roi
+        roi,
+        dm_active: user.dm_until && user.dm_until > Date.now()
       })
     }
 
     if (url.pathname === "/api/leaderboard") {
       const richest = db.prepare("SELECT username,coins FROM users ORDER BY coins DESC LIMIT 10").all()
-      const valuable = db.prepare("SELECT text,value FROM posts ORDER BY value DESC LIMIT 10").all()
+      const valuable = db.prepare("SELECT text,value FROM posts WHERE deleted=0 ORDER BY value DESC LIMIT 10").all()
       const traders = db.prepare(`
         SELECT u.username, COUNT(*) as trades
         FROM portfolio pf
@@ -79,6 +93,26 @@ const server = Bun.serve({
         LIMIT 10
       `).all()
       return Response.json({ richest, valuable, traders })
+    }
+
+    if (url.pathname === "/api/messages") {
+      const uid = parseInt(url.searchParams.get("uid"))
+      const user = db.prepare("SELECT dm_until FROM users WHERE id=?").get(uid)
+
+      if (!user.dm_until || user.dm_until < Date.now()) {
+        return Response.json({ error: "DM access expired" }, { status: 403 })
+      }
+
+      const messages = db.prepare(`
+        SELECT m.*, u.username as from_username
+        FROM messages m
+        JOIN users u ON m.from_id=u.id
+        WHERE m.to_id=? OR m.from_id=?
+        ORDER BY m.created DESC
+        LIMIT 50
+      `).all(uid, uid)
+
+      return Response.json(messages)
     }
 
     if (url.pathname === "/") {
@@ -126,9 +160,12 @@ const server = Bun.serve({
           username: user.username,
           text: d.text,
           value: 10,
-          likes: 0,
-          reshares: 0,
-          created: Date.now()
+          like_count: 0,
+          reshare_count: 0,
+          created: Date.now(),
+          original_post_id: null,
+          show_original: 1,
+          deleted: 0
         }
 
         broadcast({ t: "new", d: post })
@@ -136,31 +173,79 @@ const server = Bun.serve({
       }
 
       if (t === "like") {
-        db.prepare("UPDATE posts SET likes=likes+1 WHERE id=?").run(d.id)
-        const post = db.prepare("SELECT likes FROM posts WHERE id=?").get(d.id)
-        broadcast({ t: "update", d: { id: d.id, likes: post.likes } })
+        const existing = db.prepare("SELECT id FROM likes WHERE user_id=? AND post_id=?").get(uid, d.id)
+        const post = db.prepare("SELECT user_id FROM posts WHERE id=?").get(d.id)
+
+        if (existing) {
+          db.prepare("DELETE FROM likes WHERE user_id=? AND post_id=?").run(uid, d.id)
+          const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
+          broadcast({ t: "update", d: { id: d.id, like_count: count } })
+        } else {
+          db.prepare("INSERT INTO likes(user_id,post_id) VALUES(?,?)").run(uid, d.id)
+          const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
+          broadcast({ t: "update", d: { id: d.id, like_count: count } })
+        }
       }
 
       if (t === "reshare") {
-        const post = db.prepare("SELECT user_id,reshares FROM posts WHERE id=?").get(d.id)
-        if (!post) return
+        const existing = db.prepare("SELECT id FROM reshares WHERE user_id=? AND post_id=?").get(uid, d.id)
+        const originalPost = db.prepare("SELECT * FROM posts WHERE id=?").get(d.id)
+        const user = db.prepare("SELECT username FROM users WHERE id=?").get(uid)
 
-        db.prepare("UPDATE posts SET reshares=reshares+1 WHERE id=?").run(d.id)
+        if (existing) {
+          db.prepare("DELETE FROM reshares WHERE user_id=? AND post_id=?").run(uid, d.id)
+          db.prepare("DELETE FROM posts WHERE user_id=? AND original_post_id=?").run(uid, d.id)
+          db.prepare("UPDATE users SET coins=coins-2 WHERE id=?").run(uid)
+          db.prepare("UPDATE users SET coins=coins-5 WHERE id=?").run(originalPost.user_id)
 
-        const newReshares = post.reshares + 1
-        const newValue = calcValue(newReshares)
+          const count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(d.id).c
+          const newValue = calcValue(count)
+          db.prepare("UPDATE posts SET value=? WHERE id=?").run(newValue, d.id)
 
-        db.prepare("UPDATE posts SET value=? WHERE id=?").run(newValue, d.id)
-        db.prepare("UPDATE users SET coins=coins+2 WHERE id=?").run(uid)
-        db.prepare("UPDATE users SET coins=coins+5 WHERE id=?").run(post.user_id)
+          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue } })
+          broadcast({ t: "remove", d: { uid, original_id: d.id } })
+          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "Unshared! -2 coins" } })
+        } else {
+          db.prepare("INSERT INTO reshares(user_id,post_id) VALUES(?,?)").run(uid, d.id)
 
-        broadcast({ t: "update", d: { id: d.id, reshares: newReshares, value: newValue } })
-        sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "+2 coins for reshare!" } })
-        sendToUser(post.user_id, { t: "balance", d: { coins: getCoins(post.user_id), msg: "+5 coins from reshare!" } })
+          const showOriginal = d.show_original !== false
+          const reshareText = d.text || ""
+          const stmt = db.prepare("INSERT INTO posts(user_id,text,original_post_id,show_original,value) VALUES(?,?,?,?,?)")
+          const result = stmt.run(uid, reshareText, d.id, showOriginal ? 1 : 0, originalPost.value)
+
+          db.prepare("UPDATE users SET coins=coins+2 WHERE id=?").run(uid)
+          db.prepare("UPDATE users SET coins=coins+5 WHERE id=?").run(originalPost.user_id)
+
+          const count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(d.id).c
+          const newValue = calcValue(count)
+          db.prepare("UPDATE posts SET value=? WHERE id=?").run(newValue, d.id)
+
+          const originalUser = db.prepare("SELECT username FROM users WHERE id=?").get(originalPost.user_id)
+
+          const newPost = {
+            id: result.lastInsertRowid,
+            user_id: uid,
+            username: user.username,
+            text: reshareText,
+            value: originalPost.value,
+            like_count: 0,
+            reshare_count: 0,
+            original_post_id: d.id,
+            original_text: showOriginal ? originalPost.text : null,
+            original_author: showOriginal ? originalUser.username : null,
+            show_original: showOriginal ? 1 : 0,
+            created: Date.now()
+          }
+
+          broadcast({ t: "new", d: newPost })
+          broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue } })
+          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "+2 coins for reshare!" } })
+          sendToUser(originalPost.user_id, { t: "balance", d: { coins: getCoins(originalPost.user_id), msg: "+5 coins from reshare!" } })
+        }
       }
 
       if (t === "buy") {
-        const post = db.prepare("SELECT value,user_id FROM posts WHERE id=?").get(d.id)
+        const post = db.prepare("SELECT value,user_id FROM posts WHERE id=? AND deleted=0").get(d.id)
         const user = db.prepare("SELECT coins FROM users WHERE id=?").get(uid)
 
         if (!post || !user || user.coins < post.value || post.user_id === uid) {
@@ -178,6 +263,66 @@ const server = Bun.serve({
         } catch {
           sendToUser(uid, { t: "error", d: { msg: "Already own this post" } })
         }
+      }
+
+      if (t === "sell") {
+        const portfolio = db.prepare("SELECT buy_price FROM portfolio WHERE user_id=? AND post_id=?").get(uid, d.id)
+        const post = db.prepare("SELECT value,show_original FROM posts WHERE id=? AND deleted=0").get(d.id)
+
+        if (!portfolio) {
+          sendToUser(uid, { t: "error", d: { msg: "You don't own this post" } })
+          return
+        }
+
+        if (post.show_original === 0) {
+          db.prepare("INSERT INTO listings(user_id,post_id,price) VALUES(?,?,?)").run(uid, d.id, post.value)
+          sendToUser(uid, { t: "success", d: { msg: "Post listed for sale, waiting for buyer..." } })
+        } else {
+          db.prepare("DELETE FROM portfolio WHERE user_id=? AND post_id=?").run(uid, d.id)
+          db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(post.value, uid)
+          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Sold post for ${post.value} coins!` } })
+        }
+      }
+
+      if (t === "buy_dm") {
+        const user = db.prepare("SELECT coins FROM users WHERE id=?").get(uid)
+
+        if (user.coins < 50) {
+          sendToUser(uid, { t: "error", d: { msg: "Need 50 coins for DM access" } })
+          return
+        }
+
+        const dmUntil = Date.now() + (60 * 60 * 1000)
+        db.prepare("UPDATE users SET coins=coins-50, dm_until=? WHERE id=?").run(dmUntil, uid)
+        sendToUser(uid, { t: "dm_active", d: { dm_until: dmUntil, coins: getCoins(uid), msg: "DM unlocked for 1 hour!" } })
+      }
+
+      if (t === "send_message") {
+        const user = db.prepare("SELECT dm_until FROM users WHERE id=?").get(uid)
+
+        if (!user.dm_until || user.dm_until < Date.now()) {
+          sendToUser(uid, { t: "error", d: { msg: "DM access expired. Buy for 50 coins!" } })
+          return
+        }
+
+        if (!d.to_id || !d.text || d.text.length > 500) return
+
+        const stmt = db.prepare("INSERT INTO messages(from_id,to_id,text) VALUES(?,?,?)")
+        const result = stmt.run(uid, d.to_id, d.text)
+
+        const sender = db.prepare("SELECT username FROM users WHERE id=?").get(uid)
+
+        const message = {
+          id: result.lastInsertRowid,
+          from_id: uid,
+          to_id: d.to_id,
+          text: d.text,
+          from_username: sender.username,
+          created: Date.now()
+        }
+
+        sendToUser(uid, { t: "message", d: message })
+        sendToUser(d.to_id, { t: "message", d: message })
       }
 
       if (t === "send") {
@@ -213,6 +358,7 @@ db.exec(`
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     coins INTEGER DEFAULT 100,
+    dm_until INTEGER DEFAULT 0,
     last_claim INTEGER DEFAULT 0,
     created INTEGER DEFAULT(strftime('%s','now'))
   )
@@ -224,10 +370,30 @@ db.exec(`
     user_id INTEGER NOT NULL,
     text TEXT NOT NULL CHECK(length(text)<=280),
     value INTEGER DEFAULT 10,
-    likes INTEGER DEFAULT 0,
-    reshares INTEGER DEFAULT 0,
+    original_post_id INTEGER,
+    show_original INTEGER DEFAULT 1,
+    deleted INTEGER DEFAULT 0,
     created INTEGER DEFAULT(strftime('%s','now')),
-    FOREIGN KEY(user_id) REFERENCES users(id)
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(original_post_id) REFERENCES posts(id)
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS likes(
+    user_id INTEGER,
+    post_id INTEGER,
+    created INTEGER DEFAULT(strftime('%s','now')),
+    PRIMARY KEY(user_id,post_id)
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reshares(
+    user_id INTEGER,
+    post_id INTEGER,
+    created INTEGER DEFAULT(strftime('%s','now')),
+    PRIMARY KEY(user_id,post_id)
   )
 `)
 
@@ -238,6 +404,26 @@ db.exec(`
     buy_price INTEGER,
     bought INTEGER DEFAULT(strftime('%s','now')),
     PRIMARY KEY(user_id,post_id)
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS listings(
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    post_id INTEGER,
+    price INTEGER,
+    created INTEGER DEFAULT(strftime('%s','now'))
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages(
+    id INTEGER PRIMARY KEY,
+    from_id INTEGER,
+    to_id INTEGER,
+    text TEXT NOT NULL CHECK(length(text)<=500),
+    created INTEGER DEFAULT(strftime('%s','now'))
   )
 `)
 
@@ -255,6 +441,7 @@ db.exec(`
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created DESC)`)
 db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_value ON posts(value DESC)`)
+db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_id)`)
 
 const clients = new Set()
 const wsToUser = new Map()
@@ -264,7 +451,6 @@ function calcValue(reshares) {
   let v = 10
   for (let i = 0; i < reshares; i++) {
     v += 5 * Math.pow(0.95, i)
-    
   }
   return Math.min(Math.floor(v), 1000)
 }

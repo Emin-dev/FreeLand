@@ -18,6 +18,7 @@
       --primary: #2e5bff;
       --green: #00c48c;
       --red: #ff4757;
+      --gold: #ffd700;
       --text: #fff;
     }
 
@@ -36,6 +37,26 @@
 
     .hide { display: none !important; }
 
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+
     #auth {
       display: flex;
       flex-direction: column;
@@ -43,12 +64,14 @@
       padding: 40px 20px;
       max-width: 400px;
       margin: 100px auto;
+      animation: fadeIn 0.5s ease;
     }
 
     #auth h1 {
       font-size: 32px;
       text-align: center;
       margin-bottom: 20px;
+      animation: pulse 2s infinite;
     }
 
     input, textarea {
@@ -59,11 +82,14 @@
       border-radius: 8px;
       font-size: 16px;
       width: 100%;
+      transition: all 0.3s ease;
     }
 
     input:focus, textarea:focus {
       outline: none;
       border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(46, 91, 255, 0.1);
+      transform: translateY(-2px);
     }
 
     button {
@@ -75,34 +101,67 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s, background 0.2s;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    button:hover::before {
+      width: 300px;
+      height: 300px;
     }
 
     button:hover {
-      transform: scale(1.05);
-      background: #254edb;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.4);
     }
 
     button:active {
-      transform: scale(0.98);
+      transform: translateY(0);
     }
+
+    button.liked { background: var(--red); }
+    button.reshared { background: var(--green); }
+    button.owned { background: var(--gold); color: #000; }
 
     #header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 20px;
-      background: var(--card);
+      background: linear-gradient(135deg, var(--card), #1a1a1a);
       border-radius: 12px;
       margin-bottom: 20px;
       position: sticky;
       top: 0;
       z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      animation: slideIn 0.5s ease;
     }
 
     #balance {
       font-size: 24px;
       font-weight: bold;
+      animation: pulse 2s infinite;
+    }
+
+    #dm-status {
+      font-size: 12px;
+      color: var(--gold);
+      margin-top: 5px;
     }
 
     #header button {
@@ -110,16 +169,36 @@
       font-size: 14px;
     }
 
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
     #compose {
       background: var(--card);
       padding: 20px;
       border-radius: 12px;
       margin-bottom: 20px;
+      animation: slideIn 0.6s ease;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    #compose:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(46, 91, 255, 0.2);
     }
 
     #text {
       min-height: 80px;
       resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    #char-count {
+      text-align: right;
+      font-size: 12px;
+      color: #888;
       margin-bottom: 10px;
     }
 
@@ -131,18 +210,19 @@
       margin-bottom: 15px;
       contain: layout style paint;
       will-change: transform;
-      animation: slide-in 0.3s ease;
+      animation: slideIn 0.3s ease;
+      transition: all 0.3s ease;
     }
 
-    @keyframes slide-in {
-      from {
-        transform: translateY(-20px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+    .post:hover {
+      border-color: var(--primary);
+      transform: translateX(5px);
+      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.2);
+    }
+
+    .post.reshared-post {
+      border-left: 4px solid var(--green);
+      background: linear-gradient(to right, rgba(0,196,140,0.05), var(--card));
     }
 
     .post .header {
@@ -159,12 +239,28 @@
     .value {
       color: var(--green);
       font-weight: bold;
+      animation: pulse 2s infinite;
     }
 
     .post p {
       margin: 15px 0;
       line-height: 1.5;
       word-wrap: break-word;
+    }
+
+    .original-post {
+      background: rgba(46, 91, 255, 0.1);
+      border-left: 3px solid var(--primary);
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .original-post .author {
+      color: var(--primary);
+      font-weight: bold;
+      margin-bottom: 5px;
     }
 
     .actions {
@@ -179,6 +275,10 @@
       font-size: 14px;
     }
 
+    #dashboard, #portfolio-view, #dm-view {
+      animation: slideIn 0.5s ease;
+    }
+
     #dashboard {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -186,10 +286,19 @@
     }
 
     .stat {
-      background: var(--card);
+      background: linear-gradient(135deg, var(--card), #1a1a1a);
       padding: 20px;
       border-radius: 12px;
       text-align: center;
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .stat:hover {
+      transform: translateY(-5px);
+      border-color: var(--primary);
+      box-shadow: 0 10px 30px rgba(46, 91, 255, 0.3);
     }
 
     .stat h3 {
@@ -216,8 +325,9 @@
       border: 1px solid var(--primary);
       padding: 15px 20px;
       border-radius: 8px;
-      animation: slide-in 0.3s ease;
+      animation: slideIn 0.3s ease;
       z-index: 1000;
+      box-shadow: 0 4px 20px rgba(46, 91, 255, 0.4);
     }
 
     #modal {
@@ -231,6 +341,7 @@
       align-items: center;
       justify-content: center;
       z-index: 2000;
+      animation: fadeIn 0.3s ease;
     }
 
     .modal-content {
@@ -239,6 +350,8 @@
       border-radius: 12px;
       max-width: 400px;
       width: 90%;
+      animation: slideIn 0.3s ease;
+      border: 1px solid var(--primary);
     }
 
     .progress-bar {
@@ -250,15 +363,18 @@
     }
 
     .progress-fill {
-      background: var(--primary);
+      background: linear-gradient(90deg, var(--primary), var(--green));
       height: 100%;
       transition: width 0.25s ease;
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
     }
 
     #leaderboard {
       background: var(--card);
       padding: 20px;
       border-radius: 12px;
+      animation: slideIn 0.5s ease;
     }
 
     #leaderboard h2 {
@@ -271,6 +387,81 @@
       justify-content: space-between;
       padding: 10px;
       border-bottom: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+
+    .rank:hover {
+      background: rgba(46, 91, 255, 0.1);
+      transform: translateX(5px);
+    }
+
+    .portfolio-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .portfolio-item:hover {
+      border-color: var(--primary);
+      transform: translateX(5px);
+    }
+
+    .profit { color: var(--green); }
+    .loss { color: var(--red); }
+
+    #dm-view {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    #messages {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+
+    .message {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .message.sent {
+      background: var(--primary);
+      margin-left: 20%;
+      text-align: right;
+    }
+
+    .message.received {
+      background: var(--card);
+      margin-right: 20%;
+      border: 1px solid var(--border);
+    }
+
+    .message .username {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 5px;
+    }
+
+    #reshare-modal .modal-content {
+      max-width: 500px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 15px 0;
+      cursor: pointer;
     }
 
     @media (max-width: 600px) {
@@ -279,8 +470,26 @@
       }
 
       .actions {
-        flex-direction: column;
+        flex-wrap: wrap;
       }
+
+      .btn-group {
+        flex-wrap: wrap;
+      }
+    }
+
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--primary);
+      animation: confetti 3s ease-out forwards;
+      z-index: 9999;
     }
   </style>
 </head>
@@ -296,28 +505,36 @@
 
     <div id="main" class="hide">
       <div id="header">
-        <span id="balance">💰 100</span>
-        <div style="display:flex;gap:10px">
+        <div>
+          <div id="balance">💰 100</div>
+          <div id="dm-status"></div>
+        </div>
+        <div class="btn-group">
           <button onclick="showView('feed')">Feed</button>
           <button onclick="showView('dashboard')">Stats</button>
+          <button onclick="showView('portfolio')">Portfolio</button>
           <button onclick="showView('leaderboard')">Top</button>
+          <button onclick="showView('dm')">DM</button>
           <button onclick="logout()">Exit</button>
         </div>
       </div>
 
       <div id="compose">
         <textarea id="text" maxlength="280" placeholder="What's happening?"></textarea>
+        <div id="char-count">0 / 280</div>
         <button onclick="createPost()">Post</button>
       </div>
 
       <div id="feed"></div>
       <div id="dashboard" class="hide"></div>
+      <div id="portfolio-view" class="hide"></div>
       <div id="leaderboard" class="hide"></div>
+      <div id="dm-view" class="hide"></div>
     </div>
   </div>
 
   <script>
-    let ws, uid, username
+    let ws, uid, username, userLikes = new Set(), userReshares = new Set(), userPortfolio = new Set()
     const auth_div = document.getElementById('auth')
     const main_div = document.getElementById('main')
     const feed = document.getElementById('feed')
@@ -325,6 +542,13 @@
     const dashboard = document.getElementById('dashboard')
     const leaderboard = document.getElementById('leaderboard')
     const compose = document.getElementById('compose')
+    const portfolioView = document.getElementById('portfolio-view')
+    const dmView = document.getElementById('dm-view')
+    const dmStatus = document.getElementById('dm-status')
+
+    document.getElementById('text').addEventListener('input', (e) => {
+      document.getElementById('char-count').textContent = e.target.value.length + ' / 280'
+    })
 
     async function auth(signup) {
       const u = document.getElementById('user').value.trim()
@@ -352,11 +576,28 @@
       username = data.username
       balance.textContent = '💰 ' + data.coins
 
+      updateDMStatus(data.dm_until)
+
+      document.getElementById('user').value = ''
+      document.getElementById('pass').value = ''
+
       auth_div.classList.add('hide')
       main_div.classList.remove('hide')
 
       connectWS()
       loadFeed()
+      showConfetti()
+    }
+
+    function updateDMStatus(dmUntil) {
+      if (dmUntil && dmUntil > Date.now()) {
+        const remaining = Math.ceil((dmUntil - Date.now()) / 60000)
+        dmStatus.textContent = `DM Active (${remaining}min left)`
+        dmStatus.style.color = 'var(--gold)'
+      } else {
+        dmStatus.textContent = 'DM Locked (50 coins/hour)'
+        dmStatus.style.color = '#888'
+      }
     }
 
     function connectWS() {
@@ -364,7 +605,7 @@
       ws = new WebSocket(`${protocol}//${location.host}/ws`)
 
       ws.onopen = () => {
-        showNotification('Connected!')
+        showNotification('Connected! 🎉')
       }
 
       ws.onmessage = (e) => {
@@ -372,15 +613,24 @@
 
         if (t === 'new') addPost(d)
 
-        if (t === 'update') {
-          const likes_el = document.getElementById('l' + d.id)
-          const reshares_el = document.getElementById('r' + d.id)
-          const value_el = document.getElementById('v' + d.id)
+        if (t === 'remove') {
+          const posts = document.querySelectorAll('.post')
+          posts.forEach(post => {
+            if (post.dataset.userId == d.uid && post.dataset.originalId == d.original_id) {
+              post.remove()
+            }
+          })
+        }
 
-          if (d.likes && likes_el) likes_el.textContent = d.likes
-          if (d.reshares && reshares_el) {
-            reshares_el.textContent = d.reshares
-            if (value_el) value_el.textContent = '💰 ' + d.value
+        if (t === 'update') {
+          const likeEl = document.getElementById('lc' + d.id)
+          const reshareEl = document.getElementById('rc' + d.id)
+          const valueEl = document.getElementById('v' + d.id)
+
+          if (d.like_count !== undefined && likeEl) likeEl.textContent = d.like_count
+          if (d.reshare_count !== undefined && reshareEl) {
+            reshareEl.textContent = d.reshare_count
+            if (valueEl) valueEl.textContent = '💰 ' + d.value
           }
         }
 
@@ -389,8 +639,23 @@
           showNotification(d.msg)
         }
 
+        if (t === 'success') {
+          showNotification(d.msg)
+        }
+
         if (t === 'error') {
           showNotification(d.msg)
+        }
+
+        if (t === 'dm_active') {
+          updateDMStatus(d.dm_until)
+          balance.textContent = '💰 ' + d.coins
+          showNotification(d.msg)
+          showConfetti()
+        }
+
+        if (t === 'message') {
+          addMessage(d)
         }
 
         if (t === 'progress') {
@@ -412,17 +677,33 @@
     function addPost(p) {
       const el = document.createElement('div')
       el.className = 'post'
+      if (p.original_post_id) el.className += ' reshared-post'
       el.id = 'p' + p.id
+      el.dataset.userId = p.user_id
+      el.dataset.originalId = p.original_post_id || ''
+
+      let originalHTML = ''
+      if (p.original_post_id && p.original_text) {
+        originalHTML = `
+          <div class="original-post">
+            <div class="author">🔄 Originally by @${escapeHtml(p.original_author)}</div>
+            <div>${escapeHtml(p.original_text)}</div>
+          </div>
+        `
+      }
+
       el.innerHTML = `
         <div class="header">
           <span>@${escapeHtml(p.username)}</span>
           <span class="value" id="v${p.id}">💰 ${p.value}</span>
         </div>
-        <p>${escapeHtml(p.text)}</p>
+        ${p.text ? '<p>' + escapeHtml(p.text) + '</p>' : ''}
+        ${originalHTML}
         <div class="actions">
-          <button onclick="like(${p.id})">❤️ <span id="l${p.id}">${p.likes}</span></button>
-          <button onclick="reshare(${p.id})">🔄 <span id="r${p.id}">${p.reshares}</span></button>
+          <button id="likebtn${p.id}" onclick="like(${p.id})">❤️ <span id="lc${p.id}">${p.like_count}</span></button>
+          <button id="resharebtn${p.id}" onclick="openReshareModal(${p.id})">🔄 <span id="rc${p.id}">${p.reshare_count}</span></button>
           <button onclick="buy(${p.id})">📈 Buy</button>
+          <button onclick="sell(${p.id})">📉 Sell</button>
         </div>
       `
       feed.prepend(el)
@@ -436,18 +717,59 @@
       }
       ws.send(JSON.stringify({ t: 'post', d: { uid, text } }))
       document.getElementById('text').value = ''
+      document.getElementById('char-count').textContent = '0 / 280'
     }
 
     function like(id) {
       ws.send(JSON.stringify({ t: 'like', d: { uid, id } }))
+      const btn = document.getElementById('likebtn' + id)
+      btn.classList.toggle('liked')
+    }
+
+    function openReshareModal(id) {
+      const modal = document.createElement('div')
+      modal.id = 'reshare-modal'
+      modal.className = 'hide'
+      modal.innerHTML = `
+        <div id="modal">
+          <div class="modal-content">
+            <h2>Reshare Post</h2>
+            <textarea id="reshare-text" placeholder="Add your comment (optional)" maxlength="280"></textarea>
+            <label class="checkbox-label">
+              <input type="checkbox" id="show-original" checked>
+              Show original post (allows auto-sell)
+            </label>
+            <div style="display:flex;gap:10px;margin-top:20px">
+              <button onclick="reshare(${id})">Reshare</button>
+              <button onclick="closeReshareModal()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      `
+      document.body.appendChild(modal)
+      modal.classList.remove('hide')
+    }
+
+    function closeReshareModal() {
+      const modal = document.getElementById('reshare-modal')
+      if (modal) modal.remove()
     }
 
     function reshare(id) {
-      ws.send(JSON.stringify({ t: 'reshare', d: { uid, id } }))
+      const text = document.getElementById('reshare-text')?.value.trim() || ''
+      const showOriginal = document.getElementById('show-original')?.checked
+      ws.send(JSON.stringify({ t: 'reshare', d: { uid, id, text, show_original: showOriginal } }))
+      closeReshareModal()
+      const btn = document.getElementById('resharebtn' + id)
+      if (btn) btn.classList.toggle('reshared')
     }
 
     function buy(id) {
       ws.send(JSON.stringify({ t: 'buy', d: { uid, id } }))
+    }
+
+    function sell(id) {
+      ws.send(JSON.stringify({ t: 'sell', d: { uid, id } }))
     }
 
     async function showView(view) {
@@ -455,6 +777,8 @@
       dashboard.classList.add('hide')
       leaderboard.classList.add('hide')
       compose.classList.add('hide')
+      portfolioView.classList.add('hide')
+      dmView.classList.add('hide')
 
       if (view === 'feed') {
         feed.classList.remove('hide')
@@ -462,9 +786,15 @@
       } else if (view === 'dashboard') {
         dashboard.classList.remove('hide')
         await loadDashboard()
+      } else if (view === 'portfolio') {
+        portfolioView.classList.remove('hide')
+        await loadPortfolio()
       } else if (view === 'leaderboard') {
         leaderboard.classList.remove('hide')
         await loadLeaderboard()
+      } else if (view === 'dm') {
+        dmView.classList.remove('hide')
+        await loadDM()
       }
     }
 
@@ -484,9 +814,20 @@
         <div class="stat">
           <h3>📈 Portfolio</h3>
           <p>${data.portfolio_value}</p>
-          <small>${data.roi > 0 ? '+' : ''}${data.roi}%</small>
+          <small class="${data.roi >= 0 ? 'profit' : 'loss'}">${data.roi > 0 ? '+' : ''}${data.roi}%</small>
+        </div>
+        <div class="stat">
+          <h3>💬 DM Status</h3>
+          <p>${data.dm_active ? '✅' : '🔒'}</p>
+          ${!data.dm_active ? '<button onclick="buyDM()" style="margin-top:10px;padding:8px">Unlock (50💰)</button>' : ''}
         </div>
       `
+    }
+
+    async function loadPortfolio() {
+      portfolioView.innerHTML = '<h2>Your Portfolio</h2><div id="portfolio-list"></div>'
+      const list = document.getElementById('portfolio-list')
+      list.innerHTML = '<p>Loading...</p>'
     }
 
     async function loadLeaderboard() {
@@ -518,6 +859,48 @@
           </div>
         `).join('')}
       `
+    }
+
+    async function loadDM() {
+      dmView.innerHTML = `
+        <h2>💬 Direct Messages</h2>
+        <div id="messages"></div>
+        <div>
+          <input id="dm-to" placeholder="Username to message" style="width:100%;margin-bottom:10px">
+          <textarea id="dm-text" placeholder="Type your message..." maxlength="500"></textarea>
+          <button onclick="sendMessage()">Send Message</button>
+        </div>
+      `
+    }
+
+    function buyDM() {
+      ws.send(JSON.stringify({ t: 'buy_dm', d: { uid } }))
+    }
+
+    function sendMessage() {
+      const toUsername = document.getElementById('dm-to').value.trim()
+      const text = document.getElementById('dm-text').value.trim()
+
+      if (!toUsername || !text) {
+        showNotification('Enter username and message')
+        return
+      }
+
+      ws.send(JSON.stringify({ t: 'send_message', d: { uid, to_id: toUsername, text } }))
+      document.getElementById('dm-text').value = ''
+    }
+
+    function addMessage(msg) {
+      const messagesDiv = document.getElementById('messages')
+      if (!messagesDiv) return
+
+      const el = document.createElement('div')
+      el.className = 'message ' + (msg.from_id === uid ? 'sent' : 'received')
+      el.innerHTML = `
+        <div class="username">@${escapeHtml(msg.from_username)}</div>
+        <div>${escapeHtml(msg.text)}</div>
+      `
+      messagesDiv.prepend(el)
     }
 
     function showNotification(msg) {
@@ -553,6 +936,7 @@
       if (p >= 100) {
         setTimeout(() => {
           if (modal) modal.remove()
+          showConfetti()
         }, 500)
       }
     }
@@ -561,6 +945,8 @@
       if (ws) ws.close()
       uid = null
       username = null
+      document.getElementById('user').value = ''
+      document.getElementById('pass').value = ''
       main_div.classList.add('hide')
       auth_div.classList.remove('hide')
       feed.innerHTML = ''
@@ -570,6 +956,21 @@
       const div = document.createElement('div')
       div.textContent = text
       return div.innerHTML
+    }
+
+    function showConfetti() {
+      const colors = ['#2e5bff', '#00c48c', '#ffd700', '#ff4757']
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div')
+          confetti.className = 'confetti'
+          confetti.style.left = Math.random() * 100 + 'vw'
+          confetti.style.background = colors[Math.floor(Math.random() * colors.length)]
+          confetti.style.animationDelay = Math.random() * 0.5 + 's'
+          document.body.appendChild(confetti)
+          setTimeout(() => confetti.remove(), 3000)
+        }, i * 30)
+      }
     }
 
     document.getElementById('text').addEventListener('keydown', (e) => {
