@@ -2,10 +2,12 @@ const { Database } = require("bun:sqlite")
 
 const db = new Database("app.db", { create: true })
 
+// Database setup
 db.exec(`PRAGMA journal_mode=WAL`)
 db.exec(`PRAGMA synchronous=NORMAL`)
 db.exec(`PRAGMA foreign_keys=ON`)
 
+// Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,8 +15,7 @@ db.exec(`
     password TEXT NOT NULL,
     coins INTEGER DEFAULT 100,
     dm_until INTEGER DEFAULT 0,
-    last_claim INTEGER DEFAULT 0,
-    created INTEGER DEFAULT(strftime('%s','now'))
+    created INTEGER DEFAULT(strftime('%s','now') * 1000)
   )
 `)
 
@@ -27,7 +28,7 @@ db.exec(`
     original_post_id INTEGER,
     show_original INTEGER DEFAULT 1,
     deleted INTEGER DEFAULT 0,
-    created INTEGER DEFAULT(strftime('%s','now')),
+    created INTEGER DEFAULT(strftime('%s','now') * 1000),
     FOREIGN KEY(user_id) REFERENCES users(id),
     FOREIGN KEY(original_post_id) REFERENCES posts(id)
   )
@@ -37,10 +38,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS likes(
     user_id INTEGER,
     post_id INTEGER,
-    created INTEGER DEFAULT(strftime('%s','now')),
-    PRIMARY KEY(user_id,post_id),
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(post_id) REFERENCES posts(id)
+    created INTEGER DEFAULT(strftime('%s','now') * 1000),
+    PRIMARY KEY(user_id,post_id)
   )
 `)
 
@@ -48,10 +47,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS reshares(
     user_id INTEGER,
     post_id INTEGER,
-    created INTEGER DEFAULT(strftime('%s','now')),
-    PRIMARY KEY(user_id,post_id),
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(post_id) REFERENCES posts(id)
+    created INTEGER DEFAULT(strftime('%s','now') * 1000),
+    PRIMARY KEY(user_id,post_id)
   )
 `)
 
@@ -60,22 +57,8 @@ db.exec(`
     user_id INTEGER,
     post_id INTEGER,
     buy_price INTEGER,
-    bought INTEGER DEFAULT(strftime('%s','now')),
-    PRIMARY KEY(user_id,post_id),
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(post_id) REFERENCES posts(id)
-  )
-`)
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS listings(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    post_id INTEGER,
-    price INTEGER,
-    created INTEGER DEFAULT(strftime('%s','now')),
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(post_id) REFERENCES posts(id)
+    bought INTEGER DEFAULT(strftime('%s','now') * 1000),
+    PRIMARY KEY(user_id,post_id)
   )
 `)
 
@@ -85,32 +68,14 @@ db.exec(`
     from_id INTEGER,
     to_id INTEGER,
     text TEXT NOT NULL,
-    created INTEGER DEFAULT(strftime('%s','now')),
-    FOREIGN KEY(from_id) REFERENCES users(id),
-    FOREIGN KEY(to_id) REFERENCES users(id)
-  )
-`)
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS transfers(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_id INTEGER,
-    to_id INTEGER,
-    amount INTEGER,
-    progress INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'pending',
-    created INTEGER DEFAULT(strftime('%s','now')),
-    FOREIGN KEY(from_id) REFERENCES users(id),
-    FOREIGN KEY(to_id) REFERENCES users(id)
+    created INTEGER DEFAULT(strftime('%s','now') * 1000)
   )
 `)
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created DESC)`)
 db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_value ON posts(value DESC)`)
-db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_id)`)
-db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_id)`)
 
-console.log("✅ Database initialized successfully")
+console.log("✅ Database initialized")
 
 const clients = new Set()
 const wsToUser = new Map()
@@ -126,22 +91,28 @@ function calcValue(reshares) {
 
 function broadcast(msg) {
   const str = JSON.stringify(msg)
+  let sent = 0
   clients.forEach(ws => {
     try {
-      ws.send(str)
+      if (ws.readyState === 1) {
+        ws.send(str)
+        sent++
+      }
     } catch (e) {
       console.error("Broadcast error:", e)
     }
   })
+  console.log(`📡 Broadcast to ${sent}/${clients.size} clients`)
 }
 
 function sendToUser(uid, msg) {
   const ws = userToWs.get(uid)
-  if (ws) {
+  if (ws && ws.readyState === 1) {
     try {
       ws.send(JSON.stringify(msg))
+      console.log(`📨 Sent to user ${uid}:`, msg.t)
     } catch (e) {
-      console.error("Send to user error:", e)
+      console.error("Send error:", e)
     }
   }
 }
@@ -151,7 +122,6 @@ function getCoins(uid) {
     const user = db.prepare("SELECT coins FROM users WHERE id=?").get(uid)
     return user ? user.coins : 0
   } catch (e) {
-    console.error("Get coins error:", e)
     return 0
   }
 }
@@ -171,37 +141,58 @@ const server = Bun.serve({
         const { username, password, signup } = await req.json()
 
         if (!username || !password || username.length < 3 || username.length > 20 || password.length < 8) {
-          return Response.json({ error: "Invalid credentials" }, { status: 400 })
+          return Response.json({ error: "Username: 3-20 chars, Password: min 8 chars" }, { status: 400 })
         }
 
         if (signup) {
           try {
-            const hashedPassword = await Bun.password.hash(password)
-            const stmt = db.prepare("INSERT INTO users(username,password) VALUES(?,?)")
+            // Hash password
+            const hashedPassword = await Bun.password.hash(password, {
+              algorithm: "bcrypt",
+              cost: 10
+            })
+
+            const stmt = db.prepare("INSERT INTO users(username,password,coins) VALUES(?,?,100)")
             const result = stmt.run(username, hashedPassword)
+
             const user = db.prepare("SELECT id,username,coins,dm_until FROM users WHERE id=?").get(result.lastInsertRowid)
-            console.log("✅ User created:", user.username)
+
+            console.log("✅ User created:", user.username, "ID:", user.id)
             return Response.json(user)
           } catch (e) {
-            console.error("Signup error:", e)
-            return Response.json({ error: "Username taken" }, { status: 409 })
+            console.error("Signup error:", e.message)
+            return Response.json({ error: "Username already taken" }, { status: 409 })
           }
         } else {
+          // Login
           const user = db.prepare("SELECT * FROM users WHERE username=?").get(username)
+
           if (!user) {
-            return Response.json({ error: "User not found" }, { status: 401 })
+            console.log("❌ User not found:", username)
+            return Response.json({ error: "Invalid username or password" }, { status: 401 })
           }
-          const verified = await Bun.password.verify(password, user.password)
+
+          // Verify password
+          const verified = await Bun.password.verify(password, user.password, "bcrypt")
+
           if (!verified) {
-            return Response.json({ error: "Invalid password" }, { status: 401 })
+            console.log("❌ Invalid password for:", username)
+            return Response.json({ error: "Invalid username or password" }, { status: 401 })
           }
-          console.log("✅ User logged in:", user.username)
-          return Response.json({ id: user.id, username: user.username, coins: user.coins, dm_until: user.dm_until })
+
+          console.log("✅ User logged in:", user.username, "ID:", user.id)
+          return Response.json({ 
+            id: user.id, 
+            username: user.username, 
+            coins: user.coins, 
+            dm_until: user.dm_until 
+          })
         }
       }
 
       if (url.pathname === "/api/feed") {
         const uid = parseInt(url.searchParams.get("uid")) || 0
+
         const posts = db.prepare(`
           SELECT 
             p.*, 
@@ -217,14 +208,23 @@ const server = Bun.serve({
           LIMIT 100
         `).all()
 
+        // Add engagement data
         posts.forEach(p => {
           p.like_count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(p.id).c
           p.reshare_count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(p.id).c
-          p.user_liked = uid ? db.prepare("SELECT COUNT(*) as c FROM likes WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
-          p.user_reshared = uid ? db.prepare("SELECT COUNT(*) as c FROM reshares WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
-          p.user_owns = uid ? db.prepare("SELECT COUNT(*) as c FROM portfolio WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0 : false
+
+          if (uid) {
+            p.user_liked = db.prepare("SELECT COUNT(*) as c FROM likes WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0
+            p.user_reshared = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0
+            p.user_owns = db.prepare("SELECT COUNT(*) as c FROM portfolio WHERE user_id=? AND post_id=?").get(uid, p.id).c > 0
+          } else {
+            p.user_liked = false
+            p.user_reshared = false
+            p.user_owns = false
+          }
         })
 
+        console.log(`📰 Feed loaded: ${posts.length} posts for user ${uid}`)
         return Response.json(posts)
       }
 
@@ -308,7 +308,7 @@ const server = Bun.serve({
 
       return new Response("Not Found", { status: 404 })
     } catch (e) {
-      console.error("Server error:", e)
+      console.error("❌ Server error:", e)
       return Response.json({ error: e.message }, { status: 500 })
     }
   },
@@ -316,7 +316,7 @@ const server = Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws)
-      console.log("✅ WebSocket client connected, total:", clients.size)
+      console.log(`✅ WebSocket connected, total: ${clients.size}`)
     },
 
     close(ws) {
@@ -325,8 +325,9 @@ const server = Bun.serve({
       if (uid) {
         wsToUser.delete(ws)
         userToWs.delete(uid)
+        console.log(`❌ User ${uid} disconnected`)
       }
-      console.log("❌ WebSocket client disconnected, total:", clients.size)
+      console.log(`Total connections: ${clients.size}`)
     },
 
     message(ws, msg) {
@@ -334,22 +335,22 @@ const server = Bun.serve({
         const { t, d } = JSON.parse(msg)
         const uid = d.uid
 
+        // Map user to websocket
         if (!wsToUser.has(ws)) {
           wsToUser.set(ws, uid)
           userToWs.set(uid, ws)
-          console.log("✅ User mapped to WebSocket:", uid)
+          console.log(`🔗 User ${uid} mapped to WebSocket`)
         }
 
         if (t === "post") {
           const user = db.prepare("SELECT username FROM users WHERE id=?").get(uid)
           if (!user || !d.text || d.text.length > 280) {
-            console.log("❌ Invalid post data")
+            sendToUser(uid, { t: "error", d: { msg: "Invalid post" } })
             return
           }
 
-          const stmt = db.prepare("INSERT INTO posts(user_id,text) VALUES(?,?)")
+          const stmt = db.prepare("INSERT INTO posts(user_id,text,value) VALUES(?,?,10)")
           const result = stmt.run(uid, d.text)
-          console.log("✅ Post created:", result.lastInsertRowid)
 
           db.prepare("UPDATE users SET coins=coins+10 WHERE id=?").run(uid)
 
@@ -363,6 +364,8 @@ const server = Bun.serve({
             reshare_count: 0,
             created: Date.now(),
             original_post_id: null,
+            original_text: null,
+            original_author: null,
             show_original: 1,
             deleted: 0,
             user_liked: false,
@@ -370,32 +373,33 @@ const server = Bun.serve({
             user_owns: false
           }
 
+          console.log(`📝 Post created by ${user.username}: "${d.text.slice(0, 50)}..."`)
           broadcast({ t: "new", d: post })
           sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "+10 coins for posting!" } })
         }
 
         if (t === "like") {
-          const existing = db.prepare("SELECT id FROM likes WHERE user_id=? AND post_id=?").get(uid, d.id)
+          const existing = db.prepare("SELECT 1 FROM likes WHERE user_id=? AND post_id=?").get(uid, d.id)
 
           if (existing) {
             db.prepare("DELETE FROM likes WHERE user_id=? AND post_id=?").run(uid, d.id)
-            console.log("✅ Unlike:", d.id)
             const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
+            console.log(`💔 Unlike post ${d.id} by user ${uid}`)
             broadcast({ t: "update", d: { id: d.id, like_count: count, user_id: uid, liked: false } })
           } else {
             db.prepare("INSERT INTO likes(user_id,post_id) VALUES(?,?)").run(uid, d.id)
-            console.log("✅ Like:", d.id)
             const count = db.prepare("SELECT COUNT(*) as c FROM likes WHERE post_id=?").get(d.id).c
+            console.log(`❤️ Like post ${d.id} by user ${uid}`)
             broadcast({ t: "update", d: { id: d.id, like_count: count, user_id: uid, liked: true } })
           }
         }
 
         if (t === "reshare") {
-          const existing = db.prepare("SELECT id FROM reshares WHERE user_id=? AND post_id=?").get(uid, d.id)
+          const existing = db.prepare("SELECT 1 FROM reshares WHERE user_id=? AND post_id=?").get(uid, d.id)
           const originalPost = db.prepare("SELECT * FROM posts WHERE id=?").get(d.id)
 
           if (!originalPost) {
-            console.log("❌ Original post not found")
+            sendToUser(uid, { t: "error", d: { msg: "Post not found" } })
             return
           }
 
@@ -403,18 +407,18 @@ const server = Bun.serve({
 
           if (existing) {
             db.prepare("DELETE FROM reshares WHERE user_id=? AND post_id=?").run(uid, d.id)
-            db.prepare("DELETE FROM posts WHERE user_id=? AND original_post_id=?").run(uid, d.id)
+            db.prepare("UPDATE posts SET deleted=1 WHERE user_id=? AND original_post_id=?").run(uid, d.id)
             db.prepare("UPDATE users SET coins=coins-2 WHERE id=?").run(uid)
             db.prepare("UPDATE users SET coins=coins-5 WHERE id=?").run(originalPost.user_id)
-            console.log("✅ Unreshare:", d.id)
 
             const count = db.prepare("SELECT COUNT(*) as c FROM reshares WHERE post_id=?").get(d.id).c
             const newValue = calcValue(count)
             db.prepare("UPDATE posts SET value=? WHERE id=?").run(newValue, d.id)
 
+            console.log(`🔄 Unreshare post ${d.id} by user ${uid}`)
             broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue, user_id: uid, reshared: false } })
             broadcast({ t: "remove", d: { uid, original_id: d.id } })
-            sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "Unshared! -2 coins" } })
+            sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "Unshared" } })
           } else {
             db.prepare("INSERT INTO reshares(user_id,post_id) VALUES(?,?)").run(uid, d.id)
 
@@ -422,7 +426,6 @@ const server = Bun.serve({
             const reshareText = d.text || ""
             const stmt = db.prepare("INSERT INTO posts(user_id,text,original_post_id,show_original,value) VALUES(?,?,?,?,?)")
             const result = stmt.run(uid, reshareText, d.id, showOriginal ? 1 : 0, originalPost.value)
-            console.log("✅ Reshare created:", result.lastInsertRowid)
 
             db.prepare("UPDATE users SET coins=coins+2 WHERE id=?").run(uid)
             db.prepare("UPDATE users SET coins=coins+5 WHERE id=?").run(originalPost.user_id)
@@ -451,6 +454,7 @@ const server = Bun.serve({
               user_owns: false
             }
 
+            console.log(`🔄 Reshare post ${d.id} by ${user.username}`)
             broadcast({ t: "new", d: newPost })
             broadcast({ t: "update", d: { id: d.id, reshare_count: count, value: newValue, user_id: uid, reshared: true } })
             sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: "+2 coins for reshare!" } })
@@ -467,7 +471,7 @@ const server = Bun.serve({
             return
           }
 
-          const exists = db.prepare("SELECT id FROM portfolio WHERE user_id=? AND post_id=?").get(uid, d.id)
+          const exists = db.prepare("SELECT 1 FROM portfolio WHERE user_id=? AND post_id=?").get(uid, d.id)
           if (exists) {
             sendToUser(uid, { t: "error", d: { msg: "Already own this post" } })
             return
@@ -476,10 +480,10 @@ const server = Bun.serve({
           db.prepare("INSERT INTO portfolio(user_id,post_id,buy_price) VALUES(?,?,?)").run(uid, d.id, post.value)
           db.prepare("UPDATE users SET coins=coins-? WHERE id=?").run(post.value, uid)
           db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(Math.floor(post.value * 0.8), post.user_id)
-          console.log("✅ Post bought:", d.id, "by user", uid)
 
+          console.log(`📈 User ${uid} bought post ${d.id} for ${post.value}`)
           broadcast({ t: "update", d: { id: d.id, user_id: uid, owns: true } })
-          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Bought post for ${post.value} coins!` } })
+          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Bought for ${post.value} coins!` } })
           sendToUser(post.user_id, { t: "balance", d: { coins: getCoins(post.user_id), msg: `Post sold for ${Math.floor(post.value * 0.8)} coins!` } })
         }
 
@@ -492,31 +496,27 @@ const server = Bun.serve({
             return
           }
 
-          if (post.show_original === 0) {
-            db.prepare("INSERT INTO listings(user_id,post_id,price) VALUES(?,?,?)").run(uid, d.id, post.value)
-            console.log("✅ Post listed for sale:", d.id)
-            sendToUser(uid, { t: "success", d: { msg: "Post listed for sale, waiting for buyer..." } })
-          } else {
-            db.prepare("DELETE FROM portfolio WHERE user_id=? AND post_id=?").run(uid, d.id)
-            db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(post.value, uid)
-            console.log("✅ Post sold:", d.id, "by user", uid)
-            broadcast({ t: "update", d: { id: d.id, user_id: uid, owns: false } })
-            sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Sold post for ${post.value} coins!` } })
-          }
+          db.prepare("DELETE FROM portfolio WHERE user_id=? AND post_id=?").run(uid, d.id)
+          db.prepare("UPDATE users SET coins=coins+? WHERE id=?").run(post.value, uid)
+
+          console.log(`📉 User ${uid} sold post ${d.id} for ${post.value}`)
+          broadcast({ t: "update", d: { id: d.id, user_id: uid, owns: false } })
+          sendToUser(uid, { t: "balance", d: { coins: getCoins(uid), msg: `Sold for ${post.value} coins!` } })
         }
 
         if (t === "buy_dm") {
           const user = db.prepare("SELECT coins FROM users WHERE id=?").get(uid)
 
           if (user.coins < 50) {
-            sendToUser(uid, { t: "error", d: { msg: "Need 50 coins for DM access" } })
+            sendToUser(uid, { t: "error", d: { msg: "Need 50 coins for DM" } })
             return
           }
 
           const dmUntil = Date.now() + (60 * 60 * 1000)
           db.prepare("UPDATE users SET coins=coins-50, dm_until=? WHERE id=?").run(dmUntil, uid)
-          console.log("✅ DM unlocked for user:", uid)
-          sendToUser(uid, { t: "dm_active", d: { dm_until: dmUntil, coins: getCoins(uid), msg: "DM unlocked for 1 hour!" } })
+
+          console.log(`💬 User ${uid} unlocked DM`)
+          sendToUser(uid, { t: "dm_active", d: { dm_until: dmUntil, coins: getCoins(uid), msg: "DM unlocked!" } })
         }
 
         if (t === "send_message") {
@@ -536,7 +536,6 @@ const server = Bun.serve({
 
           const stmt = db.prepare("INSERT INTO messages(from_id,to_id,text) VALUES(?,?,?)")
           const result = stmt.run(uid, toUser.id, d.text)
-          console.log("✅ Message sent:", result.lastInsertRowid)
 
           const fromUsername = db.prepare("SELECT username FROM users WHERE id=?").get(uid).username
 
@@ -549,17 +548,19 @@ const server = Bun.serve({
             created: Date.now()
           }
 
+          console.log(`💬 Message from ${fromUsername} to user ${toUser.id}`)
           sendToUser(uid, { t: "message", d: message })
           sendToUser(toUser.id, { t: "message", d: message })
           sendToUser(uid, { t: "success", d: { msg: "Message sent!" } })
         }
       } catch (e) {
-        console.error("WebSocket message error:", e)
-        sendToUser(d?.uid, { t: "error", d: { msg: "Server error: " + e.message } })
+        console.error("❌ WebSocket error:", e)
+        sendToUser(d?.uid, { t: "error", d: { msg: "Error: " + e.message } })
       }
     }
   }
 })
 
 console.log(`🚀 FreeLand running on http://localhost:${server.port}`)
-console.log(`📁 Database: ${db.filename}`)
+console.log(`📁 Database: app.db`)
+console.log(`👥 Ready for multi-user connections`)
