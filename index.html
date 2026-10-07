@@ -910,6 +910,8 @@
       const el = document.createElement('div')
       el.className = 'post' + (p.original_post_id ? ' reshared-post' : '')
       el.id = 'post-' + p.id
+      el.dataset.userId = String(p.user_id)
+      if (p.original_post_id) el.dataset.originalId = String(p.original_post_id)
 
       let originalHTML = ''
       if (p.original_post_id && p.original_text) {

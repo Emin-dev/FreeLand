@@ -9,3 +9,5 @@ data/
 !.env.example
 coverage/
 .DS_Store
+test-results/
+playwright-report/

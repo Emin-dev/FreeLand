@@ -12,7 +12,7 @@ Install [Bun 1.4.2](https://bun.com/docs/installation) or a newer compatible sta
 bun run dev
 ```
 
-Open http://localhost:3000 and create a test account. No third-party runtime packages or package-install step are required. `bun run start` runs without watch mode; `bun test` runs the regression suite.
+Open http://localhost:3000 and create a test account. No third-party runtime packages or package-install step are required to run the app. `bun run start` runs without watch mode; `bun run test` runs the backend regression suite. Browser testing uses the development-only Playwright dependency pinned in `bun.lock`.
 
 Development listens on loopback and creates `data/freeland.sqlite`. The app never automatically opens the historical `app.db` in the repository. Use synthetic accounts while evaluating the prototype.
 
@@ -60,10 +60,17 @@ A separate migration plan is required to carry any existing accounts or data int
 ## Verification
 
 ```sh
-bun test
+bun run test
+
+# Optional Chromium UI smoke tests, also run in GitHub Actions:
+bun install --frozen-lockfile
+bunx playwright install --with-deps chromium
+bun run test:ui
 ```
 
 The suite uses fresh in-memory SQLite databases and synthetic accounts only. It covers unauthenticated access, forged identities, exact-origin checks, cookie flags, legacy bcrypt compatibility, session expiry/revocation, multi-tab delivery, malformed payloads, safe errors, trade consistency, transaction rollback, storage-route denial, and client script syntax.
+
+The Chromium smoke tests cover signup/login, repeated clicks, session restoration, multi-tab sockets, posts, likes, reshares, trades, private messages, logout failure/revocation, expired-session UI handling, and mobile layout. They start a separate loopback server with a temporary synthetic database and never use `DB_PATH` or production credentials. Screenshots and a report are retained as CI artifacts for seven days.
 
 The test-only GitHub Actions workflow has read-only repository permissions and no deployment or secret-dependent steps. A passing test suite does not establish production readiness, external hosting behavior, or historical data safety.
 
@@ -74,6 +81,7 @@ The test-only GitHub Actions workflow has read-only repository permissions and n
 - `storage.js`: explicit runtime database selection
 - `index.html`: responsive single-page client
 - `test/security.test.js`: synthetic security and compatibility regressions
+- `browser/` and `playwright.config.cjs`: isolated Chromium smoke tests
 
 ## Contributing
 

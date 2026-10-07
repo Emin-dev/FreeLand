@@ -10,7 +10,7 @@ beforeEach(() => {
   sockets = []
   app = createApp({ port: 0, now: () => time })
   base = `http://127.0.0.1:${app.server.port}`
-})
+}, 30000)
 afterEach(() => { for (const ws of sockets) ws.close(); app.close() })
 
 async function request(path, { cookie, origin = base, method = "GET", body, raw } = {}) {

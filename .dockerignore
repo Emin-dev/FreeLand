@@ -7,3 +7,5 @@ data
 *.sqlite-*
 .env
 .env.*
+test-results
+playwright-report
