@@ -1,9 +1,15 @@
 {
   "name": "freeland",
   "version": "2.0.0",
+  "private": true,
+  "description": "A Bun and SQLite social-trading prototype with virtual coins and realtime messaging",
   "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": { "bun": ">=1.4.2" },
   "scripts": {
     "start": "bun server.js",
-    "dev": "bun --watch server.js"
+    "dev": "bun --watch server.js",
+    "test": "bun test",
+    "check": "bun test"
   }
 }
