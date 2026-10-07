@@ -10,7 +10,7 @@ async function signIn(page, username, signup = true) {
   await page.waitForFunction(() => ws?.readyState === WebSocket.OPEN)
 }
 async function screenshot(page, info, name) {
-  const bytes = await page.screenshot({ path: info.outputPath(`${name}.jpg`), type: 'jpeg', quality: 60 })
+  const bytes = await page.screenshot({ path: info.outputPath(`${name}.jpg`), type: 'jpeg', quality: 70, animations: 'disabled' })
   await info.attach(name, { body: bytes, contentType: 'image/jpeg' })
   // These test screens contain synthetic data only. This optional log copy lets
   // a reviewer inspect pixels even when their environment cannot download ZIPs.
@@ -61,6 +61,8 @@ test('two accounts: realtime posts, likes, reshares, trades, private messages an
   expect((await anonymous.request.get('http://127.0.0.1:4318/api/messages?uid=1')).status()).toBe(401)
   await anonymous.close()
   await page.getByRole('button', { name: '📰 Feed', exact: true }).click()
+  await expect(page.locator('#text')).toBeVisible()
+  await expect(page.locator('#feed .post-content')).toHaveText('Synthetic browser security check')
   await screenshot(page, info, 'desktop')
   await page.reload()
   await expect(page.locator('#main')).toBeVisible()
