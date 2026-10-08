@@ -21,9 +21,9 @@ dependencies; Playwright is a development dependency only.
 
 ## Image contract
 
-- `Dockerfile` uses the tested Bun version `1.4.2-slim`. It is a version tag,
-  not an immutable image digest. Record the resolved digest during deployment
-  review and re-test intentional runtime or image updates.
+- `Dockerfile` pins Bun `1.4.2-slim` to the immutable image digest resolved by
+  the passing container CI build. Re-test intentional runtime or image updates;
+  a pinned digest does not receive security updates automatically.
 - Only five named runtime files are copied to `/app`. `.dockerignore` also
   allowlists the build context, excluding Git history, historical databases,
   local environment files, and test artifacts.
