@@ -49,6 +49,18 @@ async function act(ws, t, d, response = "balance") {
 function coins(id) { return app.db.prepare("SELECT coins FROM users WHERE id=?").get(id).coins }
 
 // All accounts, posts, messages, and databases in this suite are synthetic.
+test("readiness reports database availability without exposing private details", async () => {
+  const healthy = await request("/healthz")
+  expect(healthy.status).toBe(200)
+  expect(await healthy.json()).toEqual({ ok: true })
+  expect(healthy.headers.get("cache-control")).toBe("no-store")
+  expect((await request("/healthz", { method: "POST" })).status).toBe(405)
+  app.db.exec("ALTER TABLE users RENAME TO synthetic_unavailable")
+  const unavailable = await request("/healthz")
+  expect(unavailable.status).toBe(503)
+  expect(await unavailable.json()).toEqual({ ok: false })
+})
+
 test("private reads and WebSocket upgrades reject unauthenticated identity claims", async () => {
   for (const path of ["/api/messages", "/api/stats", "/api/portfolio", "/api/session", "/ws"]) {
     expect((await request(path + "?uid=1")).status).toBe(401)

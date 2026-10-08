@@ -134,6 +134,12 @@ export function createApp({ db = new Database(":memory:"), port = 3000, hostname
       try {
         const allowedMethods = ["/api/auth", "/api/logout"].includes(url.pathname) ? ["POST"] : ["GET"]
         if (!allowedMethods.includes(req.method)) return json({ error: "Method not allowed" }, 405, { Allow: allowedMethods.join(", ") })
+        if (url.pathname === "/healthz") {
+          // Readiness probes reveal no account data or storage details.
+          try { db.prepare("SELECT 1 FROM users LIMIT 1").get() }
+          catch { return json({ ok: false }, 503) }
+          return json({ ok: true })
+        }
         const session = security.fromRequest(req)
         if (["/api/stats", "/api/portfolio", "/api/messages", "/api/session"].includes(url.pathname) && !session) {
           return json({ error: "Sign in required" }, 401)

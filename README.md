@@ -49,7 +49,9 @@ See `.env.example`. Bun automatically loads a local `.env` file.
 
 Production startup fails if the HTTPS origin or absolute database path is missing. Terminate TLS at a trusted proxy and preserve WebSocket upgrades. This implementation targets one Bun process; socket broadcasts and throttles are process-local. It uses the directly connected peer for authentication throttling rather than trusting arbitrary forwarding headers, so a reverse proxy may share one limit across clients. Add trusted-proxy-aware edge throttling before a broader rollout.
 
-The existing `render.yaml` is a legacy scaffold and is **not ready to deploy**: it references a missing Dockerfile and does not provision the required private persistent database configuration. GitHub Pages can only serve static HTML and cannot run this backend. This change does not deploy the app or configure a hosting account.
+The `Dockerfile` packages only runtime source files, runs as an unprivileged user, and exposes a minimal database readiness check at `/healthz`. The proposed `render.yaml` supplies private persistent storage, requires an operator-provided HTTPS origin, and turns automatic code deploys off. Applying that Blueprint can still create paid resources and initiate a deployment. No hosting account or live service is configured by this change.
+
+Read the [deployment review and runbook](docs/DEPLOYMENT.md) before using it. A hosting target, costs, mount permissions, backups, and end-to-end HTTPS/WebSocket behavior must still be reviewed and authorized. GitHub Pages can serve static HTML but cannot run this backend.
 
 ### Historical storage warning
 
@@ -62,6 +64,9 @@ A separate migration plan is required to carry any existing accounts or data int
 ```sh
 bun run test
 
+# Production-mode image checks with a disposable synthetic volume (requires Docker):
+bash scripts/test-container.sh
+
 # Optional Chromium UI smoke tests, also run in GitHub Actions:
 bun install --frozen-lockfile
 bunx playwright install --with-deps chromium
@@ -72,7 +77,7 @@ The suite uses fresh in-memory SQLite databases and synthetic accounts only. It 
 
 The Chromium smoke tests cover signup/login, repeated clicks, session restoration, multi-tab sockets, posts, likes, reshares, trades, private messages, logout failure/revocation, expired-session UI handling, and mobile layout. They start a separate loopback server with a temporary synthetic database and never use `DB_PATH` or production credentials. Screenshots and a report are retained as CI artifacts for seven days.
 
-The test-only GitHub Actions workflow has read-only repository permissions and no deployment or secret-dependent steps. A passing test suite does not establish production readiness, external hosting behavior, or historical data safety.
+The container suite checks fail-closed startup, non-root execution, image contents, Secure session flags, authenticated realtime posting, private file permissions, and data persistence after container recreation. The test-only GitHub Actions workflow has read-only repository permissions and no deployment or secret-dependent steps. A passing test suite does not establish production readiness, external hosting behavior, or historical data safety.
 
 ## Project layout
 
@@ -82,6 +87,9 @@ The test-only GitHub Actions workflow has read-only repository permissions and n
 - `index.html`: responsive single-page client
 - `test/security.test.js`: synthetic security and compatibility regressions
 - `browser/` and `playwright.config.cjs`: isolated Chromium smoke tests
+- `Dockerfile`, `.dockerignore`, and `render.yaml`: reviewed deployment inputs
+- `scripts/`: disposable production-mode container checks
+- `docs/DEPLOYMENT.md`: release gates, hosting review, storage, and recovery guidance
 
 ## Contributing
 

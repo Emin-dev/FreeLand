@@ -1,15 +1,25 @@
+# Configuration proposal only. Importing/syncing this Blueprint can create
+# paid resources and initiate a deploy; obtain owner approval first.
 services:
   - type: web
     name: freeland
-    env: docker
+    runtime: docker
     dockerfilePath: ./Dockerfile
-    buildCommand: bun install
-    startCommand: bun server.js
-    healthCheckPath: /
-    autoDeploy: true
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    numInstances: 1
+    plan: 0.5c-512mb
+    disk:
+      name: freeland-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000
-    plan: starter
+        value: "3000"
+      - key: APP_ORIGIN
+        sync: false
+      - key: DB_PATH
+        value: /var/data/freeland.sqlite

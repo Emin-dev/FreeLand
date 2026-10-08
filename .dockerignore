@@ -1,11 +1,9 @@
-.git
-node_modules
-data
-*.db
-*.db-*
-*.sqlite
-*.sqlite-*
-.env
-.env.*
-test-results
-playwright-report
+# Allow only runtime inputs into the Docker build context. This excludes
+# historical databases, Git history, local secrets, and test artifacts.
+**
+!Dockerfile
+!package.json
+!server.js
+!security.js
+!storage.js
+!index.html

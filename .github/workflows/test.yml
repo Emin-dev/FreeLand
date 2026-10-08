@@ -23,6 +23,8 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bun run test
+      - name: Build and test the production container with synthetic data
+        run: bash scripts/test-container.sh
       - name: Install official Chromium test browser
         run: bunx playwright install --with-deps chromium
       - name: Run synthetic browser smoke tests
