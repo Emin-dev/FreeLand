@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>FreeLand - Professional Trading Platform</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FreeLand - Social trading prototype · virtual coins only</title>
   <style>
     * {
       margin: 0;
@@ -718,11 +718,11 @@
     <!-- Auth -->
     <div id="auth">
       <h1>🏝️ FreeLand</h1>
-      <p class="auth-subtitle">Professional Trading Platform</p>
+      <p class="auth-subtitle">Social trading prototype · virtual coins only</p>
 
       <div class="form-group">
         <label class="form-label">Username</label>
-        <input id="user" placeholder="Enter username" autocomplete="username">
+        <input id="user" minlength="3" maxlength="20" placeholder="Enter username" autocomplete="username">
       </div>
 
       <div class="form-group">
@@ -774,6 +774,40 @@
 
   <script>
     let ws, uid, username, dmActive = false
+    let authPending = false, logoutPending = false, sessionVersion = 0
+
+    async function api(path) {
+      const version = sessionVersion
+      const response = await fetch(path)
+      const data = await response.json()
+      if (version !== sessionVersion) throw new Error('Session changed')
+      if (response.status === 401) resetSession()
+      if (!response.ok) throw new Error(data.error || 'Request failed')
+      return data
+    }
+
+    function startSession(data) {
+      sessionVersion++
+      uid = data.id
+      username = data.username
+      dmActive = data.dm_until > Date.now()
+      document.getElementById('balance').textContent = '💰 ' + data.coins
+      document.getElementById('user').value = ''
+      document.getElementById('pass').value = ''
+      document.getElementById('auth').classList.add('hide')
+      document.getElementById('main').classList.remove('hide')
+      connectWS()
+      showView('feed')
+    }
+
+    function sendAction(t, d = {}) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('Connection unavailable. Sign in again to reconnect.')
+        return false
+      }
+      ws.send(JSON.stringify({ t, d }))
+      return true
+    }
 
     const textArea = document.getElementById('text')
     const charCount = document.getElementById('char-count')
@@ -787,6 +821,7 @@
     })
 
     async function auth(signup) {
+      if (authPending) return
       const u = document.getElementById('user').value.trim()
       const p = document.getElementById('pass').value
 
@@ -800,6 +835,7 @@
         return
       }
 
+      authPending = true
       try {
         const res = await fetch('/api/auth', {
           method: 'POST',
@@ -814,31 +850,23 @@
           return
         }
 
-        uid = data.id
-        username = data.username
-        dmActive = data.dm_until && data.dm_until > Date.now()
-        document.getElementById('balance').textContent = '💰 ' + data.coins
-
-        document.getElementById('user').value = ''
-        document.getElementById('pass').value = ''
-        document.getElementById('auth').classList.add('hide')
-        document.getElementById('main').classList.remove('hide')
-
-        connectWS()
-        loadFeed()
+        startSession(data)
         showNotification('Welcome to FreeLand')
       } catch (e) {
         showNotification('Connection error')
+      } finally {
+        authPending = false
       }
     }
 
     function connectWS() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      ws = new WebSocket(`${protocol}//${location.host}/ws`)
-
-      ws.onopen = () => console.log('Connected')
-
-      ws.onmessage = (e) => {
+      const oldSocket = ws
+      const socket = new WebSocket(`${protocol}//${location.host}/ws`)
+      ws = socket
+      oldSocket?.close()
+      socket.onmessage = (e) => {
+        if (socket !== ws) return
         const { t, d } = JSON.parse(e.data)
 
         if (t === 'new') addPost(d)
@@ -854,18 +882,22 @@
           dmActive = true
           document.getElementById('balance').textContent = '💰 ' + d.coins
           showNotification('DM access activated')
+          if (!document.getElementById('dm-view').classList.contains('hide')) loadDM().catch(error => showNotification(error.message))
         }
         if (t === 'message') addMessage(d)
       }
 
-      ws.onerror = () => showNotification('Connection error')
-      ws.onclose = () => showNotification('Disconnected')
+      socket.onerror = () => { if (socket === ws) showNotification('Connection error') }
+      socket.onclose = (event) => {
+        if (socket !== ws) return
+        if (event.code === 1008) resetSession()
+        showNotification(event.code === 1008 ? 'Session ended. Please sign in again.' : 'Disconnected. Sign in again to reconnect.')
+      }
     }
 
     async function loadFeed() {
       try {
-        const res = await fetch(`/api/feed?uid=${uid}`)
-        const posts = await res.json()
+        const posts = await api('/api/feed')
         document.getElementById('feed').innerHTML = ''
         posts.forEach(p => addPost(p))
       } catch (e) {
@@ -878,6 +910,8 @@
       const el = document.createElement('div')
       el.className = 'post' + (p.original_post_id ? ' reshared-post' : '')
       el.id = 'post-' + p.id
+      el.dataset.userId = String(p.user_id)
+      if (p.original_post_id) el.dataset.originalId = String(p.original_post_id)
 
       let originalHTML = ''
       if (p.original_post_id && p.original_text) {
@@ -969,14 +1003,14 @@
         showNotification('Post: 1-280 characters required')
         return
       }
-      ws.send(JSON.stringify({ t: 'post', d: { uid, text } }))
+      if (!sendAction('post', { text })) return
       textArea.value = ''
       charCount.textContent = '0 / 280'
       charCount.className = ''
     }
 
     function like(id) {
-      ws.send(JSON.stringify({ t: 'like', d: { uid, id } }))
+      sendAction('like', { id })
     }
 
     function openReshareModal(id) {
@@ -997,7 +1031,7 @@
               <input type="checkbox" id="show-original" checked>
               <div class="checkbox-content">
                 <div class="checkbox-title">Show Original Post</div>
-                <div class="checkbox-description">Recommended. Enables instant auto-sell. Hidden originals require manual buyer approval.</div>
+                <div class="checkbox-description">Show the original post alongside your comment.</div>
               </div>
             </label>
           </div>
@@ -1017,48 +1051,49 @@
     function reshare(id) {
       const text = document.getElementById('reshare-text')?.value.trim() || ''
       const showOriginal = document.getElementById('show-original')?.checked !== false
-      ws.send(JSON.stringify({ t: 'reshare', d: { uid, id, text, show_original: showOriginal } }))
+      if (!sendAction('reshare', { id, text, show_original: showOriginal })) return
       closeModal()
     }
 
     function buy(id) {
-      ws.send(JSON.stringify({ t: 'buy', d: { uid, id } }))
+      sendAction('buy', { id })
     }
 
     function sell(id) {
-      ws.send(JSON.stringify({ t: 'sell', d: { uid, id } }))
+      sendAction('sell', { id })
     }
 
     async function showView(view) {
-      document.getElementById('feed').classList.add('hide')
-      document.getElementById('dashboard').classList.add('hide')
-      document.getElementById('portfolio-view').classList.add('hide')
-      document.getElementById('leaderboard').classList.add('hide')
-      document.getElementById('dm-view').classList.add('hide')
-      document.getElementById('compose').classList.add('hide')
+      try {
+        document.getElementById('feed').classList.add('hide')
+        document.getElementById('dashboard').classList.add('hide')
+        document.getElementById('portfolio-view').classList.add('hide')
+        document.getElementById('leaderboard').classList.add('hide')
+        document.getElementById('dm-view').classList.add('hide')
+        document.getElementById('compose').classList.add('hide')
 
-      if (view === 'feed') {
-        document.getElementById('feed').classList.remove('hide')
-        document.getElementById('compose').classList.remove('hide')
-        await loadFeed()
-      } else if (view === 'dashboard') {
-        document.getElementById('dashboard').classList.remove('hide')
-        await loadDashboard()
-      } else if (view === 'portfolio') {
-        document.getElementById('portfolio-view').classList.remove('hide')
-        await loadPortfolio()
-      } else if (view === 'leaderboard') {
-        document.getElementById('leaderboard').classList.remove('hide')
-        await loadLeaderboard()
-      } else if (view === 'dm') {
-        document.getElementById('dm-view').classList.remove('hide')
-        await loadDM()
-      }
+        if (view === 'feed') {
+          document.getElementById('feed').classList.remove('hide')
+          document.getElementById('compose').classList.remove('hide')
+          await loadFeed()
+        } else if (view === 'dashboard') {
+          document.getElementById('dashboard').classList.remove('hide')
+          await loadDashboard()
+        } else if (view === 'portfolio') {
+          document.getElementById('portfolio-view').classList.remove('hide')
+          await loadPortfolio()
+        } else if (view === 'leaderboard') {
+          document.getElementById('leaderboard').classList.remove('hide')
+          await loadLeaderboard()
+        } else if (view === 'dm') {
+          document.getElementById('dm-view').classList.remove('hide')
+          await loadDM()
+        }
+      } catch (error) { showNotification(error.message) }
     }
 
     async function loadDashboard() {
-      const res = await fetch(`/api/stats?uid=${uid}`)
-      const data = await res.json()
+      const data = await api('/api/stats')
 
       const roiClass = data.roi >= 0 ? 'positive' : 'negative'
       const roiSign = data.roi > 0 ? '+' : ''
@@ -1083,8 +1118,7 @@
     }
 
     async function loadPortfolio() {
-      const res = await fetch(`/api/portfolio?uid=${uid}`)
-      const items = await res.json()
+      const items = await api('/api/portfolio')
 
       const view = document.getElementById('portfolio-view')
 
@@ -1119,8 +1153,7 @@
     }
 
     async function loadLeaderboard() {
-      const res = await fetch('/api/leaderboard')
-      const data = await res.json()
+      const data = await api('/api/leaderboard')
 
       document.getElementById('leaderboard').innerHTML = `
         <div style="margin-bottom:32px">
@@ -1190,9 +1223,8 @@
 
     async function loadMessages() {
       try {
-        const res = await fetch(`/api/messages?uid=${uid}`)
-        if (res.ok) {
-          const messages = await res.json()
+        const messages = await api('/api/messages')
+        {
           const container = document.getElementById('messages-container')
           if (container) {
             messages.forEach(m => addMessage(m))
@@ -1218,7 +1250,7 @@
     }
 
     function buyDM() {
-      ws.send(JSON.stringify({ t: 'buy_dm', d: { uid } }))
+      sendAction('buy_dm')
     }
 
     function sendMessage() {
@@ -1230,12 +1262,29 @@
         return
       }
 
-      ws.send(JSON.stringify({ t: 'send_message', d: { uid, to_id: toUser, text } }))
+      if (!sendAction('send_message', { to_id: toUser, text })) return
       document.getElementById('dm-text').value = ''
     }
 
-    function logout() {
-      if (ws) ws.close()
+    async function logout() {
+      if (logoutPending) return
+      logoutPending = true
+      try {
+        const response = await fetch('/api/logout', { method: 'POST' })
+        if (!response.ok) throw new Error('Sign-out failed')
+        resetSession()
+      } catch {
+        showNotification('Could not sign out on the server. Please try again.')
+      } finally { logoutPending = false }
+    }
+
+    function resetSession() {
+      sessionVersion++
+      const oldSocket = ws
+      ws = null
+      oldSocket?.close()
+      closeModal()
+      for (const id of ['feed', 'dashboard', 'portfolio-view', 'leaderboard', 'dm-view']) document.getElementById(id).innerHTML = '' 
       uid = null
       username = null
       dmActive = false
@@ -1263,9 +1312,13 @@
       return div.innerHTML
     }
 
+    // The HttpOnly cookie is the authority; no user ID or token is persisted in browser storage.
+    api('/api/session').then(startSession).catch(() => {})
+
     textArea?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) createPost()
     })
   </script>
 </body>
 </html>
+
