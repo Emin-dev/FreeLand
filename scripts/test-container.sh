@@ -52,7 +52,7 @@ start_app() {
 }
 wait_ready() {
   for _ in $(seq 1 30); do
-    if docker exec "$container" bun -e 'const r = await fetch("http://127.0.0.1:3000/healthz"); process.exit(r.ok ? 0 : 1)' >/dev/null 2>&1; then
+    if docker exec "$container" bun -e 'const r = await fetch("http://127.0.0.1:3000/healthz", { signal: AbortSignal.timeout(2000) }); process.exit(r.ok ? 0 : 1)' >/dev/null 2>&1; then
       return
     fi
     sleep 1
@@ -66,6 +66,7 @@ wait_ready
 bun scripts/container-smoke.js "$(base_url)" seed
 test "$(docker exec "$container" stat -c '%a' /var/data/freeland.sqlite)" = 600
 test "$(docker exec "$container" stat -c '%a' /var/data/freeland.sqlite-wal)" = 600
+test "$(docker exec "$container" stat -c '%a' /var/data/freeland.sqlite-shm)" = 600
 
 # Recreate the container, preserving only its private volume. Merely restarting
 # the same container would not catch accidental writes to the container layer.

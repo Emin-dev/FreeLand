@@ -7,7 +7,7 @@ assert.ok(["seed", "restart"].includes(phase))
 const origin = "https://freeland-container.example"
 const username = "container_test"
 const password = "synthetic-container-password"
-const request = (path, options = {}) => fetch(base + path, options)
+const request = (path, options = {}) => fetch(base + path, { signal: AbortSignal.timeout(5000), ...options })
 
 assert.equal((await request("/healthz")).status, 200)
 assert.equal((await request("/")).status, 200)

@@ -87,7 +87,7 @@ The container suite checks fail-closed startup, non-root execution, image conten
 - `index.html`: responsive single-page client
 - `test/security.test.js`: synthetic security and compatibility regressions
 - `browser/` and `playwright.config.cjs`: isolated Chromium smoke tests
-- `Dockerfile`, `.dockerignore`, and `render.yaml`: reviewed deployment inputs
+- `Dockerfile`, `.dockerignore`, and `render.yaml`: container and proposed hosting inputs
 - `scripts/`: disposable production-mode container checks
 - `docs/DEPLOYMENT.md`: release gates, hosting review, storage, and recovery guidance
 

@@ -86,6 +86,8 @@ or syncing a Blueprint can create paid resources, change an existing service,
 and initiate deployment. Turning off automatic code deploys does not prevent
 initial/manual deploys or all effects of a Blueprint sync. Confirm the account,
 service, branch, origin, costs, storage, and approval before applying it.
+Blueprint Auto Sync is a separate dashboard setting; review it and set it to
+No before any future authorized rollout that requires manual-only changes.
 
 Render persistent disks require paid compute, cannot be shared by multiple
 service instances, and introduce restart downtime during deployment. Disk
