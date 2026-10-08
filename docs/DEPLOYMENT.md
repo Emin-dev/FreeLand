@@ -64,8 +64,12 @@ capabilities, a private named volume, and a loopback-only published port. It
 checks Secure session flags, HTTP authorization, wrong-origin rejection,
 authenticated WebSocket posting, and private database file modes. It then
 removes and recreates the container with the same volume and verifies that the
-synthetic account, post, and balance survive. Cleanup touches only resources
-created by that test run.
+synthetic account, post, and balance survive. It then takes a SQLite-consistent
+backup while that WAL-mode source is running, commits a later post, and restores
+only the backup into a separate empty volume. It checks database integrity,
+foreign keys, backup-point account/post/balance recovery, exclusion of the later
+post, authenticated writes after restore, and private file modes. Cleanup touches
+only resources created by that test run.
 
 These transport checks use a synthetic HTTPS Origin header over loopback HTTP.
 They do not test a real TLS certificate, reverse proxy, or browser Secure-cookie
@@ -144,3 +148,47 @@ On failure, stop rollout, preserve the private volume, and assess whether the
 previous image is compatible with the current schema. Reverting a commit does
 not reverse data changes. A restore can lose writes made after the backup;
 require explicit approval before overwriting live data or changing access.
+
+
+### Repeatable synthetic backup-and-restore rehearsal
+
+Run `bash scripts/test-container.sh` on a Docker host with the pinned Bun
+runtime, or inspect that step in the exact commit's test-only GitHub Actions run.
+The script uses only its own generated volume names and fixed synthetic account.
+It does not read `DB_PATH`, use the historical repository databases, or connect
+to a hosted service. Runtime code, image contents, and deployment settings are
+unchanged by this rehearsal.
+
+The recovery path deliberately separates persistence from backup:
+
+1. Seed an account and post, then recreate the application on its original
+   volume. Confirm the account still has 110 virtual coins.
+2. With the source running in WAL mode, open a read-only SQLite connection and
+   use `VACUUM INTO` to create a standalone mode-600 backup. Check
+   `PRAGMA integrity_check` and `PRAGMA foreign_key_check` on that backup.
+3. Commit another post to the source, raising its balance to 120. Stop the
+   synthetic application before the recovery cutover.
+4. Mount the source volume read-only in a network-disabled, non-root helper.
+   Copy only the completed backup into a separate empty private volume, refusing
+   to replace an existing file. Check the restored database before app startup.
+5. Start the same image on the restored volume. Sign in, verify the original
+   post and 110-coin balance, and confirm the post made after backup is absent.
+   Create a new authenticated WebSocket post and verify the 120-coin balance,
+   then verify logout revocation and mode 600 for database/WAL/SHM files.
+
+This demonstrates a snapshot recovery point: writes committed after the backup
+are lost on the restored copy. It is not a production backup service. The
+synthetic backup shares the source volume only to simplify the isolated test;
+a real backup needs an independently protected destination, retention and
+capacity policy, and a reviewed recovery time/recovery point objective.
+
+For an authorized real recovery, isolate traffic and stop writers before
+cutover. Preserve the existing volume for rollback and restore to a separate
+private target; do not overwrite the only copy. Use a schema-compatible image,
+validate integrity and application behavior privately, and record the measured
+backup timestamp, data-loss window, downtime, image digest, and rollback target.
+A snapshot can revive sessions or credentials revoked after that snapshot;
+include owner-approved session invalidation and account-security review before
+reopening traffic. This synthetic check does not establish host-specific restore
+timing, encrypted off-host storage, real TLS/proxy behavior, or deployment
+approval. Release gates still apply.

@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 // Only a disposable, loopback-bound CI container and synthetic data are used.
 const [base, phase] = process.argv.slice(2)
 assert.match(base || "", /^http:\/\/127\.0\.0\.1:\d+$/)
-assert.ok(["seed", "restart"].includes(phase))
+assert.ok(["seed", "restart", "after-backup", "restored"].includes(phase))
 const origin = "https://freeland-container.example"
 const username = "container_test"
 const password = "synthetic-container-password"
@@ -12,7 +12,7 @@ const request = (path, options = {}) => fetch(base + path, { signal: AbortSignal
 assert.equal((await request("/healthz")).status, 200)
 assert.equal((await request("/")).status, 200)
 assert.equal((await request("/api/session")).status, 401)
-for (const path of ["/app.db", "/app.db-wal", "/var/data/freeland.sqlite", "/server.js", "/.env"]) {
+for (const path of ["/app.db", "/app.db-wal", "/var/data/freeland.sqlite", "/var/data/freeland-backup.sqlite", "/server.js", "/.env"]) {
   assert.equal((await request(path)).status, 404)
 }
 const body = JSON.stringify({ username, password, signup: phase === "seed" })
@@ -30,7 +30,7 @@ const cookie = setCookie.split(";")[0]
 const session = await request("/api/session", { headers: { Cookie: cookie } })
 assert.equal((await session.json()).username, username)
 
-if (phase === "seed") {
+async function post(text, expectedCoins) {
   const ws = new WebSocket(base.replace("http:", "ws:") + "/ws", { headers: { Cookie: cookie, Origin: origin } })
   try {
     await new Promise((resolve, reject) => {
@@ -45,14 +45,29 @@ if (phase === "seed") {
         if (message.t === "balance") { clearTimeout(timer); resolve(message.d) }
       }
     })
-    ws.send(JSON.stringify({ t: "post", d: { text: "synthetic persistent container post" } }))
-    assert.equal((await balance).coins, 110)
+    ws.send(JSON.stringify({ t: "post", d: { text } }))
+    assert.equal((await balance).coins, expectedCoins)
   } finally { ws.close() }
+}
+
+if (phase === "seed") {
+  await post("synthetic persistent container post", 110)
+} else if (phase === "after-backup") {
+  await post("synthetic post after backup", 120)
 } else {
   const feed = await (await request("/api/feed", { headers: { Cookie: cookie } })).json()
   assert.equal(feed.filter(post => post.text === "synthetic persistent container post" && post.username === username).length, 1)
   const stats = await (await request("/api/stats", { headers: { Cookie: cookie } })).json()
   assert.equal(stats.coins, 110)
+  if (phase === "restored") {
+    assert.equal(feed.filter(post => post.text === "synthetic post after backup").length, 0)
+    // Recovery must serve new authenticated writes, not just return old rows.
+    await post("synthetic post after restore", 120)
+    const recoveredFeed = await (await request("/api/feed", { headers: { Cookie: cookie } })).json()
+    assert.equal(recoveredFeed.filter(post => post.text === "synthetic post after restore" && post.username === username).length, 1)
+    const recoveredStats = await (await request("/api/stats", { headers: { Cookie: cookie } })).json()
+    assert.equal(recoveredStats.coins, 120)
+  }
   assert.equal((await request("/api/logout", { method: "POST", headers: { Cookie: cookie, Origin: origin } })).status, 200)
   assert.equal((await request("/api/session", { headers: { Cookie: cookie } })).status, 401)
 }
